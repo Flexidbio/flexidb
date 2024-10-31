@@ -1,17 +1,23 @@
+// lib/email/service.ts
 import { Resend } from 'resend';
 import nodemailer from 'nodemailer';
-import { prisma } from '../db/prisma';
+import { prisma } from '@/lib/db/prisma';
+
+interface EmailConfig {
+  provider: 'smtp' | 'resend';
+  host?: string;
+  port?: number;
+  username?: string;
+  password?: string;
+  apiKey?: string;
+  from: string;
+}
 
 export class EmailService {
   private static instance: EmailService;
-  private resend?: Resend;
-  private smtp?: nodemailer.Transporter;
+  private emailConfig: EmailConfig | null = null;
 
-  private constructor() {
-    if (typeof window !== 'undefined') {
-      throw new Error('EmailService cannot be instantiated on the client side');
-    }
-  }
+  private constructor() {}
 
   public static getInstance(): EmailService {
     if (!EmailService.instance) {
@@ -20,42 +26,65 @@ export class EmailService {
     return EmailService.instance;
   }
 
-  async configure(config: { type: 'resend' | 'smtp'; options: any }) {
-    if (config.type === 'resend') {
-      this.resend = new Resend(config.options.apiKey);
-    } else {
-      this.smtp = nodemailer.createTransport(config.options);
-    }
-
-    await prisma.settings.update({
-      where: { id: 'email-settings' },
-      data: { emailConfig: config }
-    });
-  }
-
-  async sendEmail(to: string, subject: string, html: string) {
+  private async loadConfig() {
     const settings = await prisma.settings.findUnique({
       where: { id: 'email-settings' }
     });
+    
+    this.emailConfig = settings?.emailConfig as unknown as EmailConfig || null;
+  }
 
-    if (!settings?.emailConfig) {
-      throw new Error('Email not configured');
+  async sendEmail(to: string, subject: string, html: string) {
+    await this.loadConfig();
+    
+    if (!this.emailConfig) {
+      throw new Error('Email configuration not found');
     }
 
-    if (settings.emailConfig.type === 'resend') {
-      await this.resend!.emails.send({
-        from: 'noreply@flexidb.app',
+    if (this.emailConfig.provider === 'smtp') {
+      const transporter = nodemailer.createTransport({
+        host: this.emailConfig.host,
+        port: this.emailConfig.port,
+        secure: this.emailConfig.port === 465,
+        auth: {
+          user: this.emailConfig.username,
+          pass: this.emailConfig.password,
+        },
+      });
+
+      await transporter.sendMail({
+        from: this.emailConfig.from,
         to,
         subject,
-        html
+        html,
+      });
+    } else if (this.emailConfig.provider === 'resend') {
+      const resend = new Resend(this.emailConfig.apiKey);
+      
+      await resend.emails.send({
+        from: this.emailConfig.from,
+        to,
+        subject,
+        html,
       });
     } else {
-      await this.smtp!.sendMail({
-        from: settings.emailConfig.options.from,
-        to,
-        subject,
-        html
-      });
+      throw new Error('Invalid email provider configuration');
     }
+  }
+
+  async sendPasswordResetEmail(to: string, resetToken: string, resetUrl: string) {
+    const html = `
+      <h1>Password Reset Request</h1>
+      <p>You requested to reset your password. Click the link below to proceed:</p>
+      <a href="${resetUrl}?token=${resetToken}">Reset Password</a>
+      <p>If you didn't request this, please ignore this email.</p>
+      <p>This link will expire in 1 hour.</p>
+    `;
+
+    await this.sendEmail(
+      to,
+      'Password Reset Request',
+      html
+    );
   }
 }

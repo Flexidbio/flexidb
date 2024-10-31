@@ -1,3 +1,4 @@
+// prisma/schema.prisma
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
@@ -35,19 +36,19 @@ model Session {
 }
 
 model User {
-  id               String             @id @default(cuid())
-  name             String?
-  email            String             @unique
-  emailVerified    DateTime?
-  password         String?
-  image            String?
-  isAdmin          Boolean            @default(false)
-  createdAt        DateTime           @default(now())
-  updatedAt        DateTime           @updatedAt
-  accounts         Account[]
-  sessions         Session[]
+  id                 String              @id @default(cuid())
+  name               String?
+  email              String              @unique
+  emailVerified      DateTime?
+  password           String?
+  image              String?
+  isAdmin            Boolean             @default(false)
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  accounts           Account[]
+  sessions           Session[]
   passwordResetToken PasswordResetToken?
-  databaseInstances DatabaseInstance[]
+  databaseInstances  DatabaseInstance[]
 }
 
 model VerificationToken {
@@ -64,14 +65,17 @@ model PasswordResetToken {
   expires   DateTime
   userId    String   @unique
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
 }
 
 model Settings {
-  id            String    @id @default(cuid())
-  allowSignups  Boolean   @default(false)
-  domain        String?
-  emailConfig   Json?
-  updatedAt     DateTime  @updatedAt
+  id           String   @id @default(cuid())
+  allowSignups Boolean  @default(false)
+  emailConfig  Json?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@map("settings")
 }
 
 model DatabaseInstance {
