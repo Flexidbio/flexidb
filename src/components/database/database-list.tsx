@@ -9,10 +9,11 @@ import { CreateDatabaseDialog } from "@/components/database/create-database-dial
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { EmptyState } from "@/components/ui/empty-state";
 import { DatabaseInstance } from "@/lib/types";
+import { useRouter } from "next/navigation";
 
 export function DatabaseList() {
   const [createOpen, setCreateOpen] = useState(false);
-
+  const router = useRouter();
   const { data: databases, isLoading } = useQuery({
     queryKey: ["databases"],
     queryFn: async () => {
@@ -36,8 +37,8 @@ export function DatabaseList() {
     <div className="space-y-4">
       <div className="flex justify-between items-center">
         <h2 className="text-xl font-semibold">Your Databases</h2>
-        <Button onClick={() => setCreateOpen(true)}>
-          <Plus className="mr-2 h-4 w-4" />
+        <Button onClick={() => router.push("/dashboard/database/create")}>
+  <Plus className="mr-2 h-4 w-4" />
           New Database
         </Button>
       </div>

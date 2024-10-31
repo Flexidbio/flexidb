@@ -3,7 +3,7 @@ import { headers } from 'next/headers';
 
 export class DockerClient {
   private static instance: DockerClient;
-  private docker: Docker;
+  public docker: Docker;
 
   private constructor() {
     if (typeof window !== 'undefined') {
@@ -19,7 +19,7 @@ export class DockerClient {
     return DockerClient.instance;
   }
 
-  async createContainer(
+  public async createContainer(
     name: string,
     image: string,
     envVars: Record<string, string>,
@@ -42,16 +42,15 @@ export class DockerClient {
         }
       }
     };
-
     if (network) {
-      containerConfig.HostConfig['NetworkMode'] = network;
+      (containerConfig.HostConfig as any).NetworkMode = network;
     }
 
     const container = await this.docker.createContainer(containerConfig);
     return container;
   }
 
-  async listContainers() {
+  public async listContainers() {
     const containers = await this.docker.listContainers({ all: true });
     return containers.map(container => ({
       id: container.Id,
@@ -66,22 +65,22 @@ export class DockerClient {
     }));
   }
 
-  async removeContainer(id: string, force: boolean = true) {
+  public async removeContainer(id: string, force: boolean = true) {
     const container = this.docker.getContainer(id);
     await container.remove({ force });
   }
 
-  async startContainer(id: string) {
+  public async startContainer(id: string) {
     const container = this.docker.getContainer(id);
     await container.start();
   }
 
-  async stopContainer(id: string) {
+  public async stopContainer(id: string) {
     const container = this.docker.getContainer(id);
     await container.stop();
   }
 
-  async getContainerLogs(id: string, tail: number = 100) {
+  public async getContainerLogs(id: string, tail: number = 100) {
     const container = this.docker.getContainer(id);
     const logs = await container.logs({
       stdout: true,

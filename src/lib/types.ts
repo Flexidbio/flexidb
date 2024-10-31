@@ -28,3 +28,9 @@ export interface DatabaseConfig {
     envVars: Record<string, string>;
   }
   
+  export interface RegisterData {
+    email: string;
+    password: string;
+    name?: string;
+  }
+  

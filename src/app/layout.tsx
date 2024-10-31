@@ -1,29 +1,29 @@
-// app/layout.tsx
-import { AuthProvider } from "@/components/providers/auth-provider";
-import { ThemeProvider } from "@/components/providers/theme-provider";
-import { Toaster } from "@/components/ui/toaster";
-import "./globals.css";
-
+import { Providers } from "@/components/providers/providers"
+import { ThemeProvider } from "@/components/providers/theme-provider"
+import { cn } from "@/lib/utils"
+import "./globals.css"
 export default function RootLayout({
   children,
 }: {
-  children: React.ReactNode;
+  children: React.ReactNode
 }) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body>
-        <AuthProvider>
-          <ThemeProvider
-            attribute="class"
-            defaultTheme="system"
-            enableSystem
-            disableTransitionOnChange
-          >
-            {children}
-            <Toaster />
-          </ThemeProvider>
-        </AuthProvider>
+      <head />
+      <body
+        className={cn(
+          "min-h-screen bg-background font-sans antialiased"
+        )}
+      >
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="system"
+          enableSystem
+          disableTransitionOnChange
+        >
+          <Providers>{children}</Providers>
+        </ThemeProvider>
       </body>
     </html>
-  );
+  )
 }

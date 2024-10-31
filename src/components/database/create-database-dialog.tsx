@@ -25,6 +25,7 @@ import { Loader2, AlertCircle } from "lucide-react";
 import { DATABASE_CONFIGS } from "@/lib/config/database.config";
 import { cn } from "@/lib/utils";
 import { DatabasePreview } from "./database-preview";
+import { CustomEnvVars } from "./custom-env-vars";
 
 interface CreateDatabaseDialogProps {
   open: boolean;
@@ -36,6 +37,7 @@ interface EnvVarField {
   value: string;
   required: boolean;
   type?: "text" | "password";
+  custom?: boolean;
 }
 
 type ValidationErrors = {
@@ -298,7 +300,8 @@ export function CreateDatabaseDialog({
                 </AlertDescription>
               </Alert>
 
-              {envVars.map((envVar, index) => (
+              {/* Required and Optional Env Vars */}
+              {envVars.filter(v => !v.custom).map((envVar, index) => (
                 <div key={envVar.key} className="grid gap-2">
                   <Label htmlFor={`env-${index}`}>
                     {envVar.key}
@@ -334,6 +337,17 @@ export function CreateDatabaseDialog({
                   )}
                 </div>
               ))}
+
+              {/* Custom Env Vars Section */}
+              <div className="pt-4">
+                <CustomEnvVars
+                  envVars={envVars}
+                  onAddEnvVar={handleAddEnvVar}
+                  onRemoveEnvVar={handleRemoveEnvVar}
+                  onUpdateEnvVar={handleUpdateEnvVar}
+                  error={customEnvKeyError}
+                />
+              </div>
             </div>
           )}{" "}
           :
@@ -351,15 +365,22 @@ export function CreateDatabaseDialog({
               <Button type="button" onClick={handleNext}>
                 Next
               </Button>
-            ) : (
+            ) : step === "config" ? (
               <div className="flex space-x-2 w-full sm:w-auto sm:justify-end">
                 <Button type="button" variant="outline" onClick={handleBack}>
                   Back
                 </Button>
+                <Button type="button" onClick={() => validateEnvVars() && setStep("preview")}>
+                  Next
+                </Button>
+              </div>
+            ) : (
+              <div className="flex space-x-2 w-full sm:w-auto sm:justify-end">
+                <Button type="button" variant="outline" onClick={() => setStep("config")}>
+                  Back
+                </Button>
                 <Button type="submit" disabled={isCreating}>
-                  {isCreating && (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  )}
+                  {isCreating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                   Create Database
                 </Button>
               </div>

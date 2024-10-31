@@ -6,7 +6,7 @@ import bcrypt from "bcryptjs";
 import { JWT } from "next-auth/jwt";
 import { AdapterUser } from "next-auth/adapters";
 
-export const {auth,signIn,signOut,handler}  =NextAuth({
+export const {auth,signIn,signOut,handlers}  =NextAuth({
   adapter: PrismaAdapter(prisma),
   session: { strategy: "jwt" },
   pages: {

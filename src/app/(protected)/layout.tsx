@@ -1,5 +1,6 @@
-import { auth } from "@/lib/auth/auth";
+import { auth } from "@/auth";
 import { redirect } from "next/navigation";
+import { Sidebar } from "@/components/sidebar";
 
 export default async function ProtectedLayout({
   children,
@@ -9,12 +10,16 @@ export default async function ProtectedLayout({
   const session = await auth();
   
   if (!session?.user) {
-    redirect("/auth/login");
+    const currentPath = "/dashboard"; // You can make this dynamic if needed
+    redirect(`/auth/login?callbackUrl=${encodeURIComponent(currentPath)}`);
   }
 
   return (
-    <div>
-      {children}
+    <div className="flex min-h-screen">
+      <Sidebar className="w-64 border-r" />
+      <main className="flex-1 overflow-y-auto p-8">
+        {children}
+      </main>
     </div>
   );
 }
