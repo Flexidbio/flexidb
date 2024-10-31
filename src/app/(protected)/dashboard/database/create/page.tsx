@@ -10,6 +10,9 @@ import { Label } from "@/components/ui/label"
 import { Loader2 } from "lucide-react"
 import { DATABASE_CONFIGS } from "@/lib/config/database.config"
 import { useCreateContainer, useAvailablePorts } from "@/hooks/use-docker"
+import { uniqueNamesGenerator, adjectives, colors, animals } from 'unique-names-generator'
+import { toast } from "sonner"
+import { Eye, EyeOff } from "lucide-react"
 
 interface EnvVarField {
   key: string;
@@ -18,12 +21,21 @@ interface EnvVarField {
   type?: "text" | "password";
 }
 
+const generateRandomString = (length: number = 16): string => {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'
+  return Array.from(crypto.getRandomValues(new Uint8Array(length)))
+    .map((x) => chars[x % chars.length])
+    .join('')
+}
+
 export default function CreateDatabasePage() {
   const router = useRouter()
   const [name, setName] = useState("")
   const [type, setType] = useState<string>("")
   const [envVars, setEnvVars] = useState<EnvVarField[]>([])
   const [selectedPort, setSelectedPort] = useState<number | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const [visiblePasswords, setVisiblePasswords] = useState<Set<string>>(new Set())
 
   const { mutate: createDatabase, isPending } = useCreateContainer()
   const { data: availablePorts, isLoading: isLoadingPorts } = useAvailablePorts(
@@ -35,49 +47,119 @@ export default function CreateDatabasePage() {
   }
 
   const handleTypeChange = (newType: string) => {
-    setType(newType)
-    const config = DATABASE_CONFIGS[newType as keyof typeof DATABASE_CONFIGS]
-    if (!config) return
+    try {
+      setError(null)
+      setType(newType)
+      setName(uniqueNamesGenerator({ 
+        dictionaries: [adjectives, colors, animals],
+        separator: '-',
+        length: 3,
+      }))
 
-    const newEnvVars: EnvVarField[] = [
-      ...config.required_env_vars.map((key) => ({
-        key,
-        value: "",
-        required: true,
-        type: getEnvVarType(key),
-      })),
-      ...config.optional_env_vars.map((key) => ({
-        key,
-        value: "",
-        required: false,
-        type: getEnvVarType(key),
-      })),
-    ]
-    setEnvVars(newEnvVars)
-    setSelectedPort(null)
+      const config = DATABASE_CONFIGS[newType as keyof typeof DATABASE_CONFIGS]
+      if (!config) {
+        throw new Error('Invalid database type selected')
+      }
+
+      const newEnvVars: EnvVarField[] = [
+        ...config.required_env_vars.map((key) => ({
+          key,
+          value: key.toLowerCase().includes('port') ? '' : generateRandomString(),
+          required: true,
+          type: getEnvVarType(key),
+        })),
+        ...config.optional_env_vars.map((key) => ({
+          key,
+          value: key.toLowerCase().includes('port') ? '' : generateRandomString(),
+          required: false,
+          type: getEnvVarType(key),
+        })),
+      ]
+      setEnvVars(newEnvVars)
+      setSelectedPort(null)
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to set database type'
+      setError(message)
+      toast.error(message)
+    }
   }
 
   const handleSubmit = () => {
-    const envVarsObject = envVars.reduce((acc, curr) => {
-      if (curr.value) {
-        acc[curr.key] = curr.value
+    try {
+      setError(null)
+      
+      // Validation
+      if (!name.trim()) {
+        throw new Error('Database name is required')
       }
-      return acc
-    }, {} as Record<string, string>)
+      if (!type) {
+        throw new Error('Database type is required')
+      }
+      if (!selectedPort) {
+        throw new Error('Port selection is required')
+      }
 
-    createDatabase(
-      { name, image: type, envVars: envVarsObject, port: selectedPort || 0 },
-      { onSuccess: () => router.push("/dashboard") }
-    )
+      // Validate required env vars
+      const missingRequiredVars = envVars
+        .filter(v => v.required && !v.value.trim())
+        .map(v => v.key)
+
+      if (missingRequiredVars.length > 0) {
+        throw new Error(`Missing required environment variables: ${missingRequiredVars.join(', ')}`)
+      }
+
+      const envVarsObject = envVars.reduce((acc, curr) => {
+        if (curr.value) {
+          acc[curr.key] = curr.value
+        }
+        return acc
+      }, {} as Record<string, string>)
+
+      createDatabase(
+        { name, image: type, envVars: envVarsObject, port: selectedPort },
+        { 
+          onSuccess: () => {
+            toast.success('Database created successfully')
+            router.push("/dashboard")
+          },
+          onError: (error) => {
+            const message = error instanceof Error ? error.message : 'Failed to create database'
+            setError(message)
+            toast.error(message)
+          }
+        }
+      )
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to create database'
+      setError(message)
+      toast.error(message)
+    }
+  }
+
+  const togglePasswordVisibility = (key: string) => {
+    setVisiblePasswords(prev => {
+      const next = new Set(prev)
+      if (next.has(key)) {
+        next.delete(key)
+      } else {
+        next.add(key)
+      }
+      return next
+    })
   }
 
   return (
-    <div>
+    <div>      
       <h1 className="text-2xl font-bold mb-6">Create New Database</h1>
       
       <Card>
         <CardHeader>
           <CardTitle>Database Configuration</CardTitle>
+          {error && (
+            <div className="text-sm font-normal text-red-500 mt-1">
+              {error}
+            </div>
+          )}
         </CardHeader>
         <CardContent>
           <div className="grid gap-4">
@@ -121,18 +203,35 @@ export default function CreateDatabasePage() {
                       {envVar.key}
                       {envVar.required && <span className="text-red-500 ml-1">*</span>}
                     </Label>
-                    <Input
-                      id={envVar.key}
-                      type={envVar.type}
-                      value={envVar.value}
-                      onChange={(e) => {
-                        setEnvVars(envVars.map(v => 
-                          v.key === envVar.key ? { ...v, value: e.target.value } : v
-                        ))
-                      }}
-                      placeholder={`Enter ${envVar.key}`}
-                      disabled={isPending}
-                    />
+                    <div className="relative">
+                      <Input
+                        id={envVar.key}
+                        type={envVar.type === "password" && !visiblePasswords.has(envVar.key) ? "password" : "text"}
+                        value={envVar.value}
+                        onChange={(e) => {
+                          setEnvVars(envVars.map(v => 
+                            v.key === envVar.key ? { ...v, value: e.target.value } : v
+                          ))
+                        }}
+                        placeholder={`Enter ${envVar.key}`}
+                        disabled={isPending}
+                      />
+                      {envVar.type === "password" && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="absolute right-2 top-1/2 -translate-y-1/2 h-8 w-8"
+                          onClick={() => togglePasswordVisibility(envVar.key)}
+                        >
+                          {visiblePasswords.has(envVar.key) ? (
+                            <EyeOff className="h-4 w-4" />
+                          ) : (
+                            <Eye className="h-4 w-4" />
+                          )}
+                        </Button>
+                      )}
+                    </div>
                   </div>
                 ))}
               </div>
@@ -162,7 +261,7 @@ export default function CreateDatabasePage() {
 
             <Button 
               onClick={handleSubmit} 
-              disabled={isPending || !name || !type}
+              disabled={isPending || !name || !type || !selectedPort}
               className="mt-4"
             >
               {isPending ? (

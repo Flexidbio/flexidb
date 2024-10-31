@@ -90,3 +90,17 @@ model DatabaseInstance {
   userId    String
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
+
+model TraefikRoute {
+  id              String   @id @default(cuid())
+  name            String   @unique
+  domain          String
+  targetPort      Int
+  targetContainer String
+  tlsEnabled      Boolean  @default(false)
+  middlewares     String[]
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@map("traefik_routes")
+}

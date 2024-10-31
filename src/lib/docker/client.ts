@@ -1,5 +1,16 @@
 import Docker from 'dockerode';
-import { headers } from 'next/headers';
+import { networkInterfaces } from 'os';
+
+export interface ContainerInfo {
+  id: string;
+  name: string;
+  status: string;
+  accessUrl: string;
+  ports: {
+    [key: string]: number;
+  };
+  state: string;
+}
 
 export class DockerClient {
   private static instance: DockerClient;
@@ -17,6 +28,28 @@ export class DockerClient {
       DockerClient.instance = new DockerClient();
     }
     return DockerClient.instance;
+  }
+
+  private getServerIP(): string {
+    const nets = networkInterfaces();
+    let serverIP = process.env.SERVER_IP;
+
+    if (!serverIP) {
+      for (const name of Object.keys(nets)) {
+        const net = nets[name];
+        if (net) {
+          const validInterface = net.find(
+            (ip) => !ip.internal && ip.family === 'IPv4'
+          );
+          if (validInterface) {
+            serverIP = validInterface.address;
+            break;
+          }
+        }
+      }
+    }
+
+    return serverIP || 'localhost';
   }
 
   public async createContainer(
@@ -39,32 +72,56 @@ export class DockerClient {
         },
         RestartPolicy: {
           Name: 'always'
-        }
+        },
+        NetworkMode: network || 'bridge'
       }
     };
-    if (network) {
-      (containerConfig.HostConfig as any).NetworkMode = network;
-    }
 
     const container = await this.docker.createContainer(containerConfig);
     return container;
   }
 
-  public async listContainers() {
-    const containers = await this.docker.listContainers({ all: true });
-    return containers.map(container => ({
-      id: container.Id,
-      name: container.Names[0].replace('/', ''),
-      status: container.Status,
-      ports: container.Ports.reduce((acc, port) => ({
-        ...acc,
-        [`${port.PrivatePort}`]: port.PublicPort
-      }), {}),
-      created: container.Created,
-      state: container.State
-    }));
+  public async getContainerInfo(containerId: string): Promise<ContainerInfo> {
+    const container = this.docker.getContainer(containerId);
+    const info = await container.inspect();
+    const ports = info.NetworkSettings.Ports;
+    const serverIP = this.getServerIP();
+
+    // Get the bound port
+    const boundPorts: { [key: string]: number } = {};
+    let primaryPort: number | undefined;
+
+    for (const [containerPort, hostBindings] of Object.entries(ports)) {
+      if (hostBindings && hostBindings[0]) {
+        const hostPort = parseInt(hostBindings[0].HostPort);
+        boundPorts[containerPort.replace('/tcp', '')] = hostPort;
+        if (!primaryPort) primaryPort = hostPort;
+      }
+    }
+
+    return {
+      id: info.Id,
+      name: info.Name.replace('/', ''),
+      status: info.State.Status,
+      accessUrl: primaryPort ? `${serverIP}:${primaryPort}` : '',
+      ports: boundPorts,
+      state: info.State.Status
+    };
   }
 
+  public async listContainers(): Promise<ContainerInfo[]> {
+    const containers = await this.docker.listContainers({ all: true });
+    const serverIP = this.getServerIP();
+
+    return Promise.all(
+      containers.map(async (container) => {
+        const info = await this.getContainerInfo(container.Id);
+        return info;
+      })
+    );
+  }
+
+  // Keep existing methods but update to use new ContainerInfo type
   public async removeContainer(id: string, force: boolean = true) {
     const container = this.docker.getContainer(id);
     await container.remove({ force });

@@ -105,6 +105,7 @@ export function EmailSettings() {
         <div className="space-y-2">
           <Label htmlFor="from">From Address</Label>
           <Input
+            className="max-w-xs"
             id="from"
             value={config.from}
             onChange={(e) => setConfig({ ...config, from: e.target.value })}
@@ -118,6 +119,7 @@ export function EmailSettings() {
             <div className="space-y-2">
               <Label htmlFor="host">SMTP Host</Label>
               <Input
+                className="max-w-xs"
                 id="host"
                 value={config.host}
                 onChange={(e) => setConfig({ ...config, host: e.target.value })}
@@ -129,6 +131,7 @@ export function EmailSettings() {
             <div className="space-y-2">
               <Label htmlFor="port">SMTP Port</Label>
               <Input
+                className="max-w-xs"
                 id="port"
                 type="number"
                 value={config.port}
@@ -141,6 +144,7 @@ export function EmailSettings() {
             <div className="space-y-2">
               <Label htmlFor="username">SMTP Username</Label>
               <Input
+                className="max-w-xs"
                 id="username"
                 value={config.username}
                 onChange={(e) => setConfig({ ...config, username: e.target.value })}
@@ -151,6 +155,7 @@ export function EmailSettings() {
             <div className="space-y-2">
               <Label htmlFor="password">SMTP Password</Label>
               <Input
+                className="max-w-xs"
                 id="password"
                 type="password"
                 value={config.password}
@@ -163,6 +168,7 @@ export function EmailSettings() {
           <div className="space-y-2">
             <Label htmlFor="apiKey">Resend API Key</Label>
             <Input
+              className="max-w-xs"
               id="apiKey"
               type="password"
               value={config.apiKey}

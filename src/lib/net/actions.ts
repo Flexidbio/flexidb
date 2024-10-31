@@ -1,3 +1,5 @@
+'use server'
+
 import net from 'net';
 
 const checkPortAvailability = (port: number): Promise<boolean> => {
@@ -18,6 +20,7 @@ const checkPortAvailability = (port: number): Promise<boolean> => {
    * Finds the next 5 available ports starting near a specified port.
    */
   export const getAvailablePorts = async (startPort: number): Promise<number[]> => {
+    
     const availablePorts: number[] = [];
     let port = startPort;
   
