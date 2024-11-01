@@ -6,6 +6,8 @@ export interface ContainerInfo {
   name: string;
   status: string;
   accessUrl: string;
+  network: string;
+  container_id: string;
   ports: {
     [key: string]: number;
   };
@@ -103,7 +105,9 @@ export class DockerClient {
       status: info.State.Status,
       accessUrl: primaryPort ? `${serverIP}:${primaryPort}` : '',
       ports: boundPorts,
-      state: info.State.Status
+      container_id:info.Id,
+      state: info.State.Status,
+      network: info.NetworkSettings.Networks.bridge.IPAddress
     };
   }
 

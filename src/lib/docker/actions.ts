@@ -48,10 +48,11 @@ export async function createContainer(input: CreateContainerInput) {
       port: validated.port,
       internalPort: validated.internalPort,
       status: "creating",
+      container_id:containerId,
       envVars: validated.envVars || {},
       createdAt: new Date(),
       updatedAt: new Date(),
-      userId: session.user.id
+      userId: session.user.id,
     });
 
     if (!dbContainer) {
@@ -84,7 +85,7 @@ export async function createContainer(input: CreateContainerInput) {
       data: {
         container_id: container.id,
         status: "running",
-        port: parseInt(containerInfo.ports[validated.internalPort.toString()] || validated.port.toString()),
+        port: parseInt(validated.internalPort.toString()),
       }
     });
 
@@ -134,7 +135,7 @@ export async function getContainers() {
 
     const containerInfoPromises = dbContainers.map(async (container) => {
       try {
-        const dockerInfo = await dockerClient.getContainerInfo(container.containerId);
+        const dockerInfo = await dockerClient.getContainerInfo(container.container_id||"");
         return {
           ...container,
           dockerInfo
