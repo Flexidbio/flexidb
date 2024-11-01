@@ -5,8 +5,10 @@ import { auth } from "@/auth";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { createContainer as dbCreateContainer } from "@/lib/db/docker";
+import { PrismaClient } from "@prisma/client";
 
 const dockerClient = DockerClient.getInstance();
+const prisma = new PrismaClient();
 
 const CreateContainerSchema = z.object({
   name: z.string().min(1),
@@ -28,6 +30,20 @@ export async function createContainer(input: CreateContainerInput) {
   try {
     const validated = CreateContainerSchema.parse(input);
 
+    // First create the database entry
+    const dbContainer = await dbCreateContainer({
+      id: "", // This will be updated after Docker container creation
+      name: validated.name,
+      type: validated.image,
+      port: validated.port,
+      status: "creating",
+      envVars: validated.envVars,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      userId: session.user.id
+    });
+
+    // Then create the Docker container
     const container = await dockerClient.createContainer(
       validated.name,
       validated.image,
@@ -36,22 +52,19 @@ export async function createContainer(input: CreateContainerInput) {
       validated.internalPort,
     );
 
+    // Start the container
     await container.start();
     
     // Get container info
     const containerInfo = await dockerClient.getContainerInfo(container.id);
 
-    // Store in database
-    await dbCreateContainer({
-      id: container.id,
-      name: validated.name,
-      type: validated.image,
-      port: validated.port,
-      status: "running",
-      envVars: validated.envVars,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      userId: session.user.id
+    // Update the database entry with the container ID
+    await prisma.databaseInstance.update({
+      where: { id: dbContainer.id },
+      data: {
+        id: container.id,
+        status: "running"
+      }
     });
 
     revalidatePath("/dashboard/containers");
@@ -63,6 +76,17 @@ export async function createContainer(input: CreateContainerInput) {
     };
   } catch (error) {
     console.error("Container creation failed:", error);
+    // If we have a database entry but container creation failed, clean up
+    try {
+      if (dbContainer?.id) {
+        await prisma.databaseInstance.delete({
+          where: { id: dbContainer.id }
+        });
+      }
+    } catch {
+      // Ignore deletion errors since we're already in an error state
+      console.warn("Failed to clean up database entry after container creation failed");
+    }
     throw new Error(
       error instanceof Error ? error.message : "Failed to create container"
     );
