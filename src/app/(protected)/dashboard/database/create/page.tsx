@@ -33,7 +33,7 @@ export default function CreateDatabasePage() {
   const [name, setName] = useState("")
   const [type, setType] = useState<string>("")
   const [envVars, setEnvVars] = useState<EnvVarField[]>([])
-  const [selectedPort, setSelectedPort] = useState<number | null>(null)
+  const [externalPort, setExternalPort] = useState<number | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [visiblePasswords, setVisiblePasswords] = useState<Set<string>>(new Set())
 
@@ -76,7 +76,7 @@ export default function CreateDatabasePage() {
         })),
       ]
       setEnvVars(newEnvVars)
-      setSelectedPort(null)
+      setExternalPort(null)
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to set database type'
       setError(message)
@@ -95,7 +95,7 @@ export default function CreateDatabasePage() {
       if (!type) {
         throw new Error('Database type is required')
       }
-      if (!selectedPort) {
+      if (!externalPort) {
         throw new Error('Port selection is required')
       }
 
@@ -116,7 +116,13 @@ export default function CreateDatabasePage() {
       }, {} as Record<string, string>)
 
       createDatabase(
-        { name, image: type, envVars: envVarsObject, port: selectedPort },
+        { 
+          name, 
+          image: DATABASE_CONFIGS[type].image,
+          envVars: envVarsObject, 
+          port: externalPort!,
+          internalPort: DATABASE_CONFIGS[type].internal_port
+        },
         { 
           onSuccess: () => {
             toast.success('Database created successfully')
@@ -239,14 +245,14 @@ export default function CreateDatabasePage() {
 
             {type && (
               <div>
-                <Label htmlFor="port">Port</Label>
+                <Label htmlFor="port">External Port (For Connections)</Label>
                 <Select
-                  value={selectedPort?.toString()}
-                  onValueChange={(value) => setSelectedPort(Number(value))}
+                  value={externalPort?.toString()}
+                  onValueChange={(value) => setExternalPort(Number(value))}
                   disabled={isPending || isLoadingPorts}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder={isLoadingPorts ? "Loading ports..." : "Select port"} />
+                    <SelectValue placeholder={isLoadingPorts ? "Loading ports..." : "Select external port"} />
                   </SelectTrigger>
                   <SelectContent>
                     {availablePorts?.map((port) => (
@@ -256,12 +262,15 @@ export default function CreateDatabasePage() {
                     ))}
                   </SelectContent>
                 </Select>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Internal port {DATABASE_CONFIGS[type].internal_port} will be mapped to your selected external port
+                </p>
               </div>
             )}
 
             <Button 
               onClick={handleSubmit} 
-              disabled={isPending || !name || !type || !selectedPort}
+              disabled={isPending || !name || !type || !externalPort}
               className="mt-4"
             >
               {isPending ? (
