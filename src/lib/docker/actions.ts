@@ -1,3 +1,4 @@
+// app/api/docker/actions.ts
 "use server";
 
 import { DockerClient } from "@/lib/docker/client";
@@ -6,6 +7,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { createContainer as dbCreateContainer } from "@/lib/db/docker";
 import { PrismaClient } from "@prisma/client";
+import { randomUUID } from "crypto";
 
 const dockerClient = DockerClient.getInstance();
 const prisma = new PrismaClient();
@@ -13,7 +15,7 @@ const prisma = new PrismaClient();
 const CreateContainerSchema = z.object({
   name: z.string().min(1),
   image: z.string().min(1),
-  envVars: z.record(z.string()),
+  envVars: z.record(z.string()).default({}),
   port: z.number().int().positive(),
   internalPort: z.number().int().positive(),
   network: z.string().optional(),
@@ -27,72 +29,98 @@ export async function createContainer(input: CreateContainerInput) {
     throw new Error("Unauthorized");
   }
 
+  let dbContainer = null;
+
   try {
     const validated = CreateContainerSchema.parse(input);
+    
+    // Generate a unique ID for the container
+    const containerId = randomUUID();
+    
+    // Create safe container name
+    const safeName = `${validated.name.toLowerCase().replace(/[^a-z0-9-]/g, '-')}-${containerId}`;
 
     // First create the database entry
-    const dbContainer = await dbCreateContainer({
-      id: "", // This will be updated after Docker container creation
+    dbContainer = await dbCreateContainer({
+      id: containerId,
       name: validated.name,
       type: validated.image,
       port: validated.port,
+      internalPort: validated.internalPort,
       status: "creating",
-      envVars: validated.envVars,
+      envVars: validated.envVars || {},
       createdAt: new Date(),
       updatedAt: new Date(),
       userId: session.user.id
     });
 
-    // Then create the Docker container
+    if (!dbContainer) {
+      throw new Error("Failed to create database entry");
+    }
+
+    // Create the Docker container with proper configuration
     const container = await dockerClient.createContainer(
-      validated.name,
+      safeName,
       validated.image,
-      validated.envVars,
+      validated.envVars || {},
       validated.port,
       validated.internalPort,
+      validated.network
     );
+
+    if (!container) {
+      throw new Error("Failed to create Docker container");
+    }
 
     // Start the container
     await container.start();
     
-    // Get container info
+    // Get container info including bound port
     const containerInfo = await dockerClient.getContainerInfo(container.id);
 
-    // Update the database entry with the container ID
-    await prisma.databaseInstance.update({
+    // Update the database entry with the container info
+    const updatedContainer = await prisma.databaseInstance.update({
       where: { id: dbContainer.id },
       data: {
-        id: container.id,
-        status: "running"
+        container_id: container.id,
+        status: "running",
+        port: parseInt(containerInfo.ports[validated.internalPort.toString()] || validated.port.toString()),
       }
     });
 
     revalidatePath("/dashboard/containers");
+    
     return { 
       success: true, 
       containerId: container.id,
       accessUrl: containerInfo.accessUrl,
-      ports: containerInfo.ports
+      ports: containerInfo.ports,
+      dbContainer: updatedContainer
     };
+
   } catch (error) {
     console.error("Container creation failed:", error);
-    // If we have a database entry but container creation failed, clean up
-    try {
-      if (dbContainer?.id) {
+    
+    // Clean up database entry if it exists and container creation failed
+    if (dbContainer?.id) {
+      try {
         await prisma.databaseInstance.delete({
           where: { id: dbContainer.id }
         });
+      } catch (cleanupError) {
+        console.warn("Failed to clean up database entry:", cleanupError);
       }
-    } catch {
-      // Ignore deletion errors since we're already in an error state
-      console.warn("Failed to clean up database entry after container creation failed");
     }
-    throw new Error(
-      error instanceof Error ? error.message : "Failed to create container"
-    );
+
+    if (error instanceof Error) {
+      throw new Error(`Failed to create container: ${error.message}`);
+    }
+    
+    throw new Error("Failed to create container");
   }
 }
 
+// Update getContainers to include database information
 export async function getContainers() {
   const session = await auth();
   if (!session?.user) {
@@ -100,7 +128,24 @@ export async function getContainers() {
   }
 
   try {
-    const containers = await dockerClient.listContainers();
+    const dbContainers = await prisma.databaseInstance.findMany({
+      where: { userId: session.user.id }
+    });
+
+    const containerInfoPromises = dbContainers.map(async (container) => {
+      try {
+        const dockerInfo = await dockerClient.getContainerInfo(container.containerId);
+        return {
+          ...container,
+          dockerInfo
+        };
+      } catch (error) {
+        console.warn(`Failed to get Docker info for container ${container.id}:`, error);
+        return container;
+      }
+    });
+
+    const containers = await Promise.all(containerInfoPromises);
     return { success: true, containers };
   } catch (error) {
     console.error("Failed to list containers:", error);
@@ -108,7 +153,6 @@ export async function getContainers() {
   }
 }
 
-// Update other existing actions to use containerInfo
 export async function getContainerStatus(containerId: string) {
   const session = await auth();
   if (!session?.user) {
@@ -124,18 +168,57 @@ export async function getContainerStatus(containerId: string) {
   }
 }
 
+// Keep other existing functions but add proper error handling
 export async function stopContainer(containerId: string) {
-  await dockerClient.stopContainer(containerId);
+  try {
+    await dockerClient.stopContainer(containerId);
+    await prisma.databaseInstance.update({
+      where: { container_id: containerId },
+      data: { status: "stopped" }
+    });
+    revalidatePath("/dashboard/containers");
+    return { success: true };
+  } catch (error) {
+    console.error("Failed to stop container:", error);
+    throw new Error("Failed to stop container");
+  }
 }
 
 export async function removeContainer(containerId: string) {
-  await dockerClient.removeContainer(containerId);
-
+  try {
+    await dockerClient.removeContainer(containerId);
+    await prisma.databaseInstance.delete({
+      where: { container_id: containerId }
+    });
+    revalidatePath("/dashboard/containers");
+    return { success: true };
+  } catch (error) {
+    console.error("Failed to remove container:", error);
+    throw new Error("Failed to remove container");
+  }
 }
+
 export async function startContainer(containerId: string) {
-  await dockerClient.startContainer(containerId);
+  try {
+    await dockerClient.startContainer(containerId);
+    await prisma.databaseInstance.update({
+      where: { container_id: containerId },
+      data: { status: "running" }
+    });
+    revalidatePath("/dashboard/containers");
+    return { success: true };
+  } catch (error) {
+    console.error("Failed to start container:", error);
+    throw new Error("Failed to start container");
+  }
 }
 
 export async function getContainerLogs(containerId: string) {
-  return await dockerClient.getContainerLogs(containerId);
+  try {
+    const logs = await dockerClient.getContainerLogs(containerId);
+    return { success: true, logs };
+  } catch (error) {
+    console.error("Failed to get container logs:", error);
+    throw new Error("Failed to get container logs");
+  }
 }
