@@ -10,17 +10,14 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { EmptyState } from "@/components/ui/empty-state";
 import { DatabaseInstance } from "@/lib/types";
 import { useRouter } from "next/navigation";
+import { getContainers } from "@/app/actions";
 
 export function DatabaseList() {
   const [createOpen, setCreateOpen] = useState(false);
   const router = useRouter();
-  const { data: databases, isLoading } = useQuery({
-    queryKey: ["databases"],
-    queryFn: async () => {
-      const response = await fetch("/api/databases");
-      if (!response.ok) throw new Error("Failed to fetch databases");
-      return response.json();
-    }
+  const { data: containers, isLoading } = useQuery({
+    queryKey: ["containers"],
+    queryFn: getContainers
   });
 
   if (isLoading) {
@@ -43,7 +40,7 @@ export function DatabaseList() {
         </Button>
       </div>
 
-      {databases?.length === 0 ? (
+      {containers?.length === 0 ? (
         <EmptyState
           title="No databases found"
           description="Create your first database to get started"
@@ -57,7 +54,7 @@ export function DatabaseList() {
       ) : (
         <ScrollArea className="h-[calc(100vh-200px)]">
           <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
-            {databases?.map((database: DatabaseInstance) => (
+            {containers?.map((database: DatabaseInstance) => (
               <DatabaseCard
                 key={database.id}
                 database={database}

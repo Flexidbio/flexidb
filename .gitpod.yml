@@ -1,0 +1,15 @@
+# .gitpod.yml
+
+tasks:
+  - init: |
+      # Install Bun
+      curl -fsSL https://bun.sh/install | bash
+      # Add Bun to PATH
+      export BUN_INSTALL="$HOME/.bun"
+      export PATH="$BUN_INSTALL/bin:$PATH"
+      # Use Bun to install dependencies
+      bun install
+    command: |
+      # Start your application or dev server with Bun
+      bun dev
+
