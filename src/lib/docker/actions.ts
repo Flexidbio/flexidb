@@ -4,6 +4,7 @@ import { DockerClient } from "@/lib/docker/client";
 import { auth } from "@/auth";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import { createContainer as dbCreateContainer } from "@/lib/db/docker";
 
 const dockerClient = DockerClient.getInstance();
 
@@ -12,6 +13,7 @@ const CreateContainerSchema = z.object({
   image: z.string().min(1),
   envVars: z.record(z.string()),
   port: z.number().int().positive(),
+  internalPort: z.number().int().positive(),
   network: z.string().optional(),
 });
 
@@ -31,13 +33,26 @@ export async function createContainer(input: CreateContainerInput) {
       validated.image,
       validated.envVars,
       validated.port,
-      validated.network
+      validated.internalPort,
     );
 
     await container.start();
     
-    // Get container info including bound port and access URL
+    // Get container info
     const containerInfo = await dockerClient.getContainerInfo(container.id);
+
+    // Store in database
+    await dbCreateContainer({
+      id: container.id,
+      name: validated.name,
+      type: validated.image,
+      port: validated.port,
+      status: "running",
+      envVars: validated.envVars,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      userId: session.user.id
+    });
 
     revalidatePath("/dashboard/containers");
     return { 

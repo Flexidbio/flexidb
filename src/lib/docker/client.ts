@@ -56,28 +56,26 @@ export class DockerClient {
     name: string,
     image: string,
     envVars: Record<string, string>,
-    port: number,
+    externalPort: number,
+    internalPort: number,
     network?: string
   ) {
-    const containerConfig = {
-      Image: image,
+    const portBindings: any = {};
+    portBindings[`${internalPort}/tcp`] = [{ HostPort: externalPort.toString() }];
+
+    const container = await this.docker.createContainer({
       name,
+      Image: image,
       Env: Object.entries(envVars).map(([key, value]) => `${key}=${value}`),
       ExposedPorts: {
-        [`${port}/tcp`]: {}
+        [`${internalPort}/tcp`]: {}
       },
       HostConfig: {
-        PortBindings: {
-          [`${port}/tcp`]: [{ HostPort: '0' }] // Dynamically assign host port
-        },
-        RestartPolicy: {
-          Name: 'always'
-        },
+        PortBindings: portBindings,
         NetworkMode: network || 'bridge'
       }
-    };
+    });
 
-    const container = await this.docker.createContainer(containerConfig);
     return container;
   }
 

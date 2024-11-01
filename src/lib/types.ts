@@ -34,3 +34,12 @@ export interface DatabaseConfig {
     name?: string;
   }
   
+  export interface CreateContainerInput {
+    name: string;
+    image: string;
+    envVars: Record<string, string>;
+    port: number; // external port
+    internalPort: number;
+    network?: string;
+  }
+  
