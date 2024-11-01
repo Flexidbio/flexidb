@@ -93,7 +93,7 @@ export function DatabaseCard({ database }: DatabaseCardProps) {
             <div>
               <CardTitle>{database.name}</CardTitle>
               <CardDescription>
-                Port: {database.port} · Type: {database.type}
+                External Port: {database.port} · Internal Port: {database.internalPort} · Type: {database.type}
               </CardDescription>
             </div>
             <DropdownMenu>

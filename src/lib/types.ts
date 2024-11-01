@@ -18,7 +18,7 @@ export interface DatabaseConfig {
     created: string;
     state: string;
   }
-  
+
   export interface DatabaseInstance {
     id: string;
     name: string;
@@ -26,6 +26,7 @@ export interface DatabaseConfig {
     port: number;
     status: string;
     envVars: Record<string, string>;
+    internalPort: number;
   }
   
   export interface RegisterData {

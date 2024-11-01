@@ -115,13 +115,17 @@ export default function CreateDatabasePage() {
         return acc
       }, {} as Record<string, string>)
 
+      const dbConfig = DATABASE_CONFIGS[type];
+      if (!dbConfig) throw new Error('Invalid database type');
+
       createDatabase(
         { 
           name, 
-          image: DATABASE_CONFIGS[type].image,
+          image: dbConfig.image,
           envVars: envVarsObject, 
-          port: externalPort!,
-          internalPort: DATABASE_CONFIGS[type].internal_port
+          port: externalPort,
+          internalPort: dbConfig.internal_port,
+          network: 'bridge'
         },
         { 
           onSuccess: () => {
