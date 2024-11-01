@@ -11,10 +11,14 @@ export async function getContainerById(id: string) {
 }
 
 export async function createContainer(container: DatabaseInstance) {
+  const { name, port, envVars, ...rest } = container;
+  
   return await prisma.databaseInstance.create({ 
     data: {
-      ...container,
-      envVars: container.envVars as Prisma.InputJsonValue
+      name,
+      port,
+      envVars: envVars as Prisma.InputJsonValue,
+      ...rest
     } 
   });
 }

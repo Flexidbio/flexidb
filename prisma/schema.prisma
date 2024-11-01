@@ -84,6 +84,7 @@ model DatabaseInstance {
   type      String
   port      Int
   internalPort Int
+  network      String?
   status    String
   envVars   Json
   createdAt DateTime @default(now())
