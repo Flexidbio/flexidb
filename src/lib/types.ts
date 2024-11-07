@@ -25,7 +25,7 @@ export interface DatabaseConfig {
     type: string;
     port: number;
     status: string;
-    
+    container_id:string;
     envVars: Record<string, string>;
     internalPort: number;
   }

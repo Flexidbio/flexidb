@@ -3,7 +3,6 @@ import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { MoreHorizontal, Play, Square, Trash } from "lucide-react";
 import {
   DropdownMenu,
@@ -14,6 +13,7 @@ import {
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { DatabaseInstance } from "@/lib/types";
+import { removeContainer, startContainer, stopContainer } from "@/lib/docker/actions";
 
 interface DatabaseCardProps {
   database: DatabaseInstance;
@@ -37,12 +37,10 @@ export function DatabaseCard({ database }: DatabaseCardProps) {
     }
   };
 
+  // Delete mutation
   const { mutate: deleteDatabase, isPending: isDeleting } = useMutation({
-    mutationFn: async () => {
-      const response = await fetch(`/api/databases/${database.id}`, {
-        method: "DELETE",
-      });
-      if (!response.ok) throw new Error("Failed to delete database");
+    mutationFn: async (id: string) => {
+      await removeContainer(id);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["databases"] });
@@ -56,34 +54,44 @@ export function DatabaseCard({ database }: DatabaseCardProps) {
       toast({
         variant: "destructive",
         title: "Error",
-        description: "Failed to delete database",
+        description: error instanceof Error ? error.message : "Failed to delete database",
       });
     },
   });
 
+  // Toggle mutation
   const { mutate: toggleDatabase, isPending: isToggling } = useMutation({
-    mutationFn: async () => {
-      const action = database.status === "running" ? "stop" : "start";
-      const response = await fetch(`/api/databases/${database.id}/${action}`, {
-        method: "POST",
-      });
-      if (!response.ok) throw new Error(`Failed to ${action} database`);
+    mutationFn: async ({ id, action }: { id: string; action: 'start' | 'stop' }) => {
+      if (action === 'start') {
+        await startContainer(id);
+      } else {
+        await stopContainer(id);
+      }
     },
-    onSuccess: () => {
+    onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ["databases"] });
       toast({
         title: "Success",
-        description: `Database ${database.status === "running" ? "stopped" : "started"} successfully`,
+        description: `Database ${variables.action === 'stop' ? 'stopped' : 'started'} successfully`,
       });
     },
-    onError: (error) => {
+    onError: (error, variables) => {
       toast({
         variant: "destructive",
         title: "Error",
-        description: `Failed to ${database.status === "running" ? "stop" : "start"} database`,
+        description: error instanceof Error ? error.message : `Failed to ${variables.action} database`,
       });
     },
   });
+
+  const handleToggle = () => {
+    const action = database.status === "running" ? 'stop' : 'start';
+    toggleDatabase({ id: database.container_id, action });
+  };
+
+  const handleDelete = () => {
+    deleteDatabase(database.container_id);
+  };
 
   return (
     <>
@@ -122,7 +130,7 @@ export function DatabaseCard({ database }: DatabaseCardProps) {
         </CardContent>
         <CardFooter className="pt-3">
           <Button
-            onClick={() => toggleDatabase()}
+            onClick={handleToggle}
             disabled={isToggling}
             className="w-full"
             variant={database.status === "running" ? "destructive" : "default"}
@@ -149,7 +157,7 @@ export function DatabaseCard({ database }: DatabaseCardProps) {
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
-              onClick={() => deleteDatabase()}
+              onClick={handleDelete}
               className="bg-red-600 hover:bg-red-700"
               disabled={isDeleting}
             >
@@ -161,3 +169,5 @@ export function DatabaseCard({ database }: DatabaseCardProps) {
     </>
   );
 }
+
+export default DatabaseCard;

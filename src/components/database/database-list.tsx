@@ -12,10 +12,15 @@ import { DatabaseInstance } from "@/lib/types";
 import { useRouter } from "next/navigation";
 import { getContainers } from "@/app/actions";
 
+// Update the DatabaseInstance type to allow null for container_id
+type DatabaseInstanceWithNullableContainerId = Omit<DatabaseInstance, 'container_id'> & {
+  container_id: string | null;
+};
+
 export function DatabaseList() {
   const [createOpen, setCreateOpen] = useState(false);
   const router = useRouter();
-  const { data: containers, isLoading } = useQuery({
+  const { data: containers, isLoading } = useQuery<DatabaseInstanceWithNullableContainerId[]>({
     queryKey: ["containers"],
     queryFn: getContainers
   });
@@ -35,26 +40,14 @@ export function DatabaseList() {
       <div className="flex justify-between items-center">
         <h2 className="text-xl font-semibold">Your Databases</h2>
         <Button onClick={() => router.push("/dashboard/database/create")}>
-  <Plus className="mr-2 h-4 w-4" />
+          <Plus className="mr-2 h-4 w-4" />
           New Database
         </Button>
       </div>
 
-      {containers?.length === 0 ? (
-        <EmptyState
-          title="No databases found"
-          description="Create your first database to get started"
-          action={
-            <Button onClick={() => setCreateOpen(true)}>
-              <Plus className="mr-2 h-4 w-4" />
-              New Database
-            </Button>
-          }
-        />
-      ) : (
         <ScrollArea className="h-[calc(100vh-200px)]">
           <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
-            {containers?.map((database: DatabaseInstance) => (
+            {containers?.map((database) => (
               <DatabaseCard
                 key={database.id}
                 database={database}
@@ -62,7 +55,6 @@ export function DatabaseList() {
             ))}
           </div>
         </ScrollArea>
-      )}
 
       <CreateDatabaseDialog
         open={createOpen}

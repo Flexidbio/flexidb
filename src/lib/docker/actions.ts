@@ -171,6 +171,7 @@ export async function getContainerStatus(containerId: string) {
 
 // Keep other existing functions but add proper error handling
 export async function stopContainer(containerId: string) {
+  console.log(containerId)
   try {
     await dockerClient.stopContainer(containerId);
     await prisma.databaseInstance.update({
@@ -180,7 +181,7 @@ export async function stopContainer(containerId: string) {
     revalidatePath("/dashboard/containers");
     return { success: true };
   } catch (error) {
-    console.error("Failed to stop container:", error);
+    console.log("Failed to stop container:", error);
     throw new Error("Failed to stop container");
   }
 }
@@ -191,7 +192,7 @@ export async function removeContainer(containerId: string) {
     await prisma.databaseInstance.delete({
       where: { container_id: containerId }
     });
-    revalidatePath("/dashboard/containers");
+    revalidatePath("/dashboard/");
     return { success: true };
   } catch (error) {
     console.error("Failed to remove container:", error);
