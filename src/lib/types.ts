@@ -26,6 +26,7 @@ export interface DatabaseConfig {
     name: string;
     type: string;
     port: number;
+    image: string;
     status: string;
     container_id: string | null;
     envVars: Prisma.JsonValue;

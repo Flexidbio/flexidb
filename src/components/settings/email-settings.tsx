@@ -5,7 +5,7 @@ import { useToast } from "@/hooks/use-toast"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Alert, AlertDescription } from "@/components/ui/alert"
+
 
 type EmailProvider = 'smtp' | 'resend'
 
@@ -65,7 +65,7 @@ export function EmailSettings() {
       toast({
         variant: "destructive",
         title: "Error",
-        description: "Failed to save email settings",
+        description: (error as Error).message || "Failed to save email settings",
       })
     } finally {
       setLoading(false)

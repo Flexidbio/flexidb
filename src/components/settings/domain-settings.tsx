@@ -96,9 +96,9 @@ export function DomainSettings() {
                 <AlertDescription>
                   After updating your domain, make sure to:
                   <ol className="list-decimal ml-4 mt-2">
-                    <li>Point your domain's A record to your server's IP address</li>
+                    <li>Point your domain&apos;s A record to your server&apos;s IP address</li>
                     <li>Wait for DNS propagation (may take up to 48 hours)</li>
-                    <li>SSL certificate will be automatically provisioned via Let's Encrypt</li>
+                    <li>SSL certificate will be automatically provisioned via Let&apos;s Encrypt</li>
                   </ol>
                 </AlertDescription>
               </Alert>

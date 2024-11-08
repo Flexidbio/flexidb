@@ -10,7 +10,8 @@
     "postinstall": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:studio": "prisma studio",
-    "git:push": "git add . && git commit -m 'update' && git push"
+    "git:push": "git add . && git commit -m 'update' && git push",
+    "create-admin": "bun scripts/create-admin.ts"
   },
   "dependencies": {
     "@auth/core": "^0.37.2",

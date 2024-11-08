@@ -8,13 +8,19 @@ import { Loader2, RefreshCcw } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 
-interface LogEntry {
-  timestamp: string;
-  message: string;
-}
-
 interface DatabaseLogsTabProps {
   containerId: string;
+}
+
+interface LogData {
+  message: string;
+  timestamp: string;
+  stream: 'stdout' | 'stderr';
+}
+
+interface WebSocketMessage {
+  type: string;
+  data: LogData;
 }
 
 export function DatabaseLogsTab({ containerId }: DatabaseLogsTabProps) {
@@ -31,6 +37,7 @@ export function DatabaseLogsTab({ containerId }: DatabaseLogsTabProps) {
         const message = line.replace(/\[.*?\]/, '').trim();
         return { timestamp, message };
       } catch (error) {
+        console.error("Error parsing log line:", error);
         return { timestamp: new Date().toISOString(), message: line };
       }
     }) ?? [];

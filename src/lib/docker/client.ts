@@ -1,4 +1,4 @@
-import Docker from 'dockerode';
+import Docker,{Container} from 'dockerode';
 import { networkInterfaces, platform } from 'os';
 
 export interface ContainerInfo {
@@ -13,6 +13,13 @@ export interface ContainerInfo {
   };
   state: string;
 }
+
+interface DockerResponse<T = unknown> {
+  data: T;
+  status: number;
+}
+
+
 
 export class DockerClient {
   private static instance: DockerClient;
@@ -98,7 +105,7 @@ export class DockerClient {
     externalPort: number,
     internalPort: number,
     network?: string
-  ) {
+  ): Promise<DockerResponse<Container>> {
     // Pull the image first
     await this.pullImage(image);
 
@@ -118,7 +125,10 @@ export class DockerClient {
       }
     });
 
-    return container;
+    return {
+      data: container,
+      status:200
+    };
   }
 
   public async getContainerInfo(containerId: string): Promise<ContainerInfo> {
@@ -153,7 +163,7 @@ export class DockerClient {
 
   public async listContainers(): Promise<ContainerInfo[]> {
     const containers = await this.docker.listContainers({ all: true });
-    const serverIP = this.getServerIP();
+    
 
     return Promise.all(
       containers.map(async (container) => {

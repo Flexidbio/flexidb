@@ -82,7 +82,8 @@ model DatabaseInstance {
   id           String   @id @default(cuid())
   container_id String?  @unique
   name         String
-  type         String
+  type         String   // e.g., "postgres", "mysql", "mongodb"
+  image        String   // e.g., "postgres:15-alpine", "mysql:8.0", "mongo:latest"
   port         Int
   internalPort Int
   status       String

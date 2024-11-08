@@ -44,7 +44,8 @@ export async function createContainer(input: CreateContainerInput) {
     dbContainer = await dbCreateContainer({
       id: containerId,
       name: validated.name,
-      type: validated.image,
+      type: validated.image.split(":")[0],
+      image: validated.image,
       port: validated.port,
       internalPort: validated.internalPort,
       status: "creating",
@@ -60,7 +61,7 @@ export async function createContainer(input: CreateContainerInput) {
     }
 
     // Create the Docker container with proper configuration
-    const container = await dockerClient.createContainer(
+    const containerResponse = await dockerClient.createContainer(
       safeName,
       validated.image,
       validated.envVars || {},
@@ -69,12 +70,14 @@ export async function createContainer(input: CreateContainerInput) {
       validated.network
     );
 
-    if (!container) {
+    if (!containerResponse?.data) {
       throw new Error("Failed to create Docker container");
     }
 
+    const container = containerResponse.data;
+
     // Start the container
-    await container.start();
+    await dockerClient.startContainer(container.id);
     
     // Get container info including bound port
     const containerInfo = await dockerClient.getContainerInfo(container.id);

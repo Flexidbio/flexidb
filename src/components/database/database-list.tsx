@@ -7,7 +7,6 @@ import { Button } from "@/components/ui/button";
 import { DatabaseCard } from "@/components/database/database-card";
 import { CreateDatabaseDialog } from "@/components/database/create-database-dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { EmptyState } from "@/components/ui/empty-state";
 import { DatabaseInstance } from "@/lib/types";
 import { useRouter } from "next/navigation";
 import { getContainers } from "@/app/actions";

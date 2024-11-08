@@ -1,5 +1,5 @@
+'use client';
 
-// components/auth/reset-password-form.tsx
 import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -39,6 +39,7 @@ export function ResetPasswordForm() {
 
       setValidToken(response.ok);
     } catch (error) {
+      console.error("Error verifying reset token:", error);
       setValidToken(false);
     }
   };
@@ -71,7 +72,7 @@ export function ResetPasswordForm() {
       toast({
         variant: "destructive",
         title: "Error",
-        description: "Failed to reset password. Please try again.",
+        description: (error as Error).message || "Failed to reset password. Please try again.",
       });
     } finally {
       setLoading(false);

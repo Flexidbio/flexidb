@@ -73,16 +73,34 @@ CREATE TABLE "settings" (
 -- CreateTable
 CREATE TABLE "DatabaseInstance" (
     "id" TEXT NOT NULL,
+    "container_id" TEXT,
     "name" TEXT NOT NULL,
     "type" TEXT NOT NULL,
+    "image" TEXT NOT NULL,
     "port" INTEGER NOT NULL,
+    "internalPort" INTEGER NOT NULL,
     "status" TEXT NOT NULL,
     "envVars" JSONB NOT NULL,
+    "userId" TEXT NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
-    "userId" TEXT NOT NULL,
 
     CONSTRAINT "DatabaseInstance_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "traefik_routes" (
+    "id" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "domain" TEXT NOT NULL,
+    "targetPort" INTEGER NOT NULL,
+    "targetContainer" TEXT NOT NULL,
+    "tlsEnabled" BOOLEAN NOT NULL DEFAULT false,
+    "middlewares" TEXT[],
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "traefik_routes_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateIndex
@@ -105,6 +123,12 @@ CREATE UNIQUE INDEX "PasswordResetToken_token_key" ON "PasswordResetToken"("toke
 
 -- CreateIndex
 CREATE UNIQUE INDEX "PasswordResetToken_userId_key" ON "PasswordResetToken"("userId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "DatabaseInstance_container_id_key" ON "DatabaseInstance"("container_id");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "traefik_routes_name_key" ON "traefik_routes"("name");
 
 -- AddForeignKey
 ALTER TABLE "Account" ADD CONSTRAINT "Account_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;

@@ -3,14 +3,17 @@
 
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { ScrollArea } from "@/components/ui/scroll-area";
+
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { Database, Settings, LogOut } from "lucide-react";
 import { signOut } from "next-auth/react";
 import { ThemeToggle } from "@/components/theme-toggle";
 
-interface SidebarProps extends React.HTMLAttributes<HTMLDivElement> {}
+interface SidebarProps extends React.HTMLAttributes<HTMLDivElement> {
+  defaultCollapsed?: boolean;
+  className?: string;
+}
 
 export function Sidebar({ className }: SidebarProps) {
   const pathname = usePathname();

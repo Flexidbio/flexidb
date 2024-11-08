@@ -20,9 +20,7 @@ export function DatabaseConnectionTab({ database }: DatabaseConnectionTabProps) 
     console.log("Environment variables:", envVars);
     
     try {
-      const normalizedType = database.type.toLowerCase();
-      
-      switch (normalizedType) {
+      switch (database.type) {
         case 'postgres':
           if (!envVars.POSTGRES_USER || !envVars.POSTGRES_PASSWORD || !envVars.POSTGRES_DB) {
             throw new Error('Missing required PostgreSQL environment variables');
@@ -30,15 +28,18 @@ export function DatabaseConnectionTab({ database }: DatabaseConnectionTabProps) 
           return `postgresql://${envVars.POSTGRES_USER}:${envVars.POSTGRES_PASSWORD}@localhost:${database.port}/${envVars.POSTGRES_DB}`;
         
         case 'mysql':
-        case 'mariadb':
           if (!envVars.MYSQL_USER || !envVars.MYSQL_PASSWORD || !envVars.MYSQL_DATABASE) {
-            throw new Error('Missing required MySQL/MariaDB environment variables');
+            throw new Error('Missing required MySQL environment variables');
           }
           return `mysql://${envVars.MYSQL_USER}:${envVars.MYSQL_PASSWORD}@localhost:${database.port}/${envVars.MYSQL_DATABASE}`;
         
-        case 'mongo':
+        case 'mariadb':
+          if (!envVars.MYSQL_USER || !envVars.MYSQL_PASSWORD || !envVars.MYSQL_DATABASE) {
+            throw new Error('Missing required MariaDB environment variables');
+          }
+          return `mysql://${envVars.MYSQL_USER}:${envVars.MYSQL_PASSWORD}@localhost:${database.port}/${envVars.MYSQL_DATABASE}`;
+        
         case 'mongodb':
-        case 'mongo:latest':
           if (!envVars.MONGO_INITDB_ROOT_USERNAME || !envVars.MONGO_INITDB_ROOT_PASSWORD) {
             throw new Error('Missing required MongoDB environment variables');
           }
@@ -59,6 +60,7 @@ export function DatabaseConnectionTab({ database }: DatabaseConnectionTabProps) 
       await navigator.clipboard.writeText(text);
       toast.success('Copied to clipboard');
     } catch (err) {
+      console.error("Error copying to clipboard:", err);
       toast.error('Failed to copy to clipboard');
     }
   };

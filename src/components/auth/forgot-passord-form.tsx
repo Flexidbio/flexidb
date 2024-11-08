@@ -32,7 +32,7 @@ export function ForgotPasswordForm() {
       toast({
         variant: "destructive",
         title: "Error",
-        description: "Failed to send reset email. Please try again.",
+        description: (error as Error).message || "Failed to send reset email. Please try again.",
       });
     } finally {
       setLoading(false);

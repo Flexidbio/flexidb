@@ -76,33 +76,3 @@ export function useAvailablePorts(internalPort:number ){
   })
 }
 
-export function useSshConnection() {
-  return useMutation({
-    mutationFn: async (credentials: {
-      host: string;
-      port: number;
-      username: string;
-      password: string;
-    }) => {
-      const response = await fetch("/api/ssh", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(credentials),
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || "Failed to establish SSH connection");
-      }
-
-      return response.json();
-    },
-    onError: (error: Error) => {
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: error.message || "Failed to establish SSH connection",
-      });
-    },
-  });
-}

@@ -3,6 +3,13 @@ import CredentialsProvider from "next-auth/providers/credentials";
 import { PrismaAdapter } from "@auth/prisma-adapter";
 import { prisma } from "@/lib/db/prisma";
 import bcrypt from "bcryptjs";
+import { JWT } from "@auth/core/jwt";
+
+// Use the CustomToken interface in the callbacks
+interface CustomToken extends JWT {
+  id: string;
+  isAdmin: boolean;
+}
 
 export const {
   handlers: { GET, POST },
@@ -15,15 +22,15 @@ export const {
     error: "/auth/error",
   },
   callbacks: {
-    async jwt({ token, user }) {
+    async jwt({ token, user }): Promise<CustomToken> {
       if (user) {
         return {
           ...token,
-          id: user.id,
-          isAdmin: user.isAdmin,
+          id: user.id || "",
+          isAdmin: user.isAdmin || false,
         };
       }
-      return token;
+      return token as CustomToken;
     },
     async session({ session, token }): Promise<Session> {
       return {
@@ -31,7 +38,7 @@ export const {
         user: {
           ...session.user,
           id: token.id as string,
-          isAdmin: token.isAdmin,
+          isAdmin: Boolean(token.isAdmin),
         },
       };
     },

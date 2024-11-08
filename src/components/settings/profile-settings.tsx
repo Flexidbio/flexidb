@@ -1,12 +1,12 @@
 "use client"
 
 import { useState } from "react"
-import { useRouter } from "next/navigation"
+
 import { useToast } from "@/hooks/use-toast"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Alert, AlertDescription } from "@/components/ui/alert"
+
 import { useSession } from "next-auth/react"
 
 export function ProfileSettings() {
@@ -43,7 +43,7 @@ export function ProfileSettings() {
       toast({
         variant: "destructive",
         title: "Error",
-        description: "Failed to update profile",
+        description: (error as Error).message || "Failed to update profile",
       })
     } finally {
       setLoading(false)
