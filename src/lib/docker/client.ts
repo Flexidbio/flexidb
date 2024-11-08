@@ -1,5 +1,5 @@
 import Docker from 'dockerode';
-import { networkInterfaces } from 'os';
+import { networkInterfaces, platform } from 'os';
 
 export interface ContainerInfo {
   id: string;
@@ -22,7 +22,18 @@ export class DockerClient {
     if (typeof window !== 'undefined') {
       throw new Error('DockerClient cannot be instantiated on the client side');
     }
-    this.docker = new Docker({ socketPath: '/var/run/docker.sock' });
+
+    // Handle different Docker socket configurations based on OS
+    const isWindows = platform() === 'win32';
+    const config = isWindows
+      ? {
+          socketPath: '//./pipe/docker_engine'
+        }
+      : {
+          socketPath: '/var/run/docker.sock'
+        };
+
+    this.docker = new Docker(config);
   }
 
   public static getInstance(): DockerClient {
@@ -54,6 +65,32 @@ export class DockerClient {
     return serverIP || 'localhost';
   }
 
+  public async pullImage(image: string): Promise<void> {
+    try {
+      console.log(`Pulling image: ${image}`);
+      await new Promise((resolve, reject) => {
+        this.docker.pull(image, (err: any, stream: any) => {
+          if (err) {
+            reject(err);
+            return;
+          }
+
+          this.docker.modem.followProgress(stream, (err: any, output: any) => {
+            if (err) {
+              reject(err);
+              return;
+            }
+            resolve(output);
+          });
+        });
+      });
+      console.log(`Successfully pulled image: ${image}`);
+    } catch (error) {
+      console.error(`Failed to pull image ${image}:`, error);
+      throw error;
+    }
+  }
+
   public async createContainer(
     name: string,
     image: string,
@@ -62,9 +99,12 @@ export class DockerClient {
     internalPort: number,
     network?: string
   ) {
+    // Pull the image first
+    await this.pullImage(image);
+
     const portBindings: any = {};
     portBindings[`${internalPort}/tcp`] = [{ HostPort: externalPort.toString() }];
-
+    
     const container = await this.docker.createContainer({
       name,
       Image: image,

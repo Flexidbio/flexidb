@@ -22,7 +22,8 @@ export function DatabaseList() {
   const router = useRouter();
   const { data: containers, isLoading } = useQuery<DatabaseInstanceWithNullableContainerId[]>({
     queryKey: ["containers"],
-    queryFn: getContainers
+    queryFn: getContainers as () => Promise<DatabaseInstance[]>
+  
   });
 
   if (isLoading) {

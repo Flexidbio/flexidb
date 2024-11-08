@@ -58,11 +58,12 @@ export function useContainerOperation(operation: 'start' | 'stop' | 'remove') {
   });
 }
 
-export function useContainerLogs(containerId: string) {
+export function useContainerLogs(containerId: string, isLive: boolean = true) {
   return useQuery({
     queryKey: ['container-logs', containerId],
     queryFn: () => dockerActions.getContainerLogs(containerId),
-    refetchInterval: 5000, // Refresh logs every 5 seconds
+    refetchInterval: isLive ? 5000 : false, // Refresh logs every 5 seconds if live mode is on
+    refetchIntervalInBackground: false,
   });
 }
 

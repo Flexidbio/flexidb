@@ -1,3 +1,5 @@
+import { Prisma } from "@prisma/client";
+
 export interface DatabaseConfig {
     image: string;
     internal_port: number;
@@ -25,9 +27,12 @@ export interface DatabaseConfig {
     type: string;
     port: number;
     status: string;
-    container_id:string;
-    envVars: Record<string, string>;
+    container_id: string | null;
+    envVars: Prisma.JsonValue;
     internalPort: number;
+    userId: string;
+    createdAt: Date;
+    updatedAt: Date;
   }
   
   export interface RegisterData {
