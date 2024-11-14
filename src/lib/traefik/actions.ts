@@ -10,154 +10,97 @@ import { prisma } from '@/lib/db/prisma';
 
 const dockerClient = DockerClient.getInstance();
 
-// Validation schemas
-const TraefikRouteSchema = z.object({
-  name: z.string().min(1),
+// Simplified schema for just domain configuration
+const DomainConfigSchema = z.object({
   domain: z.string().min(1),
-  targetPort: z.number().int().positive(),
-  targetContainer: z.string().min(1),
-  tlsEnabled: z.boolean().default(false),
-  middlewares: z.array(z.string()).optional(),
+  enableSsl: z.boolean().default(false),
 });
 
-const TraefikConfigSchema = z.object({
-  entryPoints: z.object({
-    web: z.object({
-      address: z.string(),
-    }),
-    websecure: z.object({
-      address: z.string(),
-    }).optional(),
-  }),
-  certificatesResolvers: z.object({
-    letsencrypt: z.object({
-      acme: z.object({
-        email: z.string().email(),
-        storage: z.string(),
-        httpChallenge: z.object({
-          entryPoint: z.string(),
-        }),
-      }),
-    }),
-  }).optional(),
-});
-
-export type TraefikRouteInput = z.infer<typeof TraefikRouteSchema>;
-export type TraefikConfigInput = z.infer<typeof TraefikConfigSchema>;
+export type DomainConfigInput = z.infer<typeof DomainConfigSchema>;
 
 const TRAEFIK_CONFIG_DIR = process.env.TRAEFIK_CONFIG_DIR || '/etc/traefik';
 
-export async function createTraefikRoute(input: TraefikRouteInput) {
+export async function configureDomain(input: DomainConfigInput) {
   const session = await auth();
   if (!session?.user?.isAdmin) {
     throw new Error('Unauthorized - Admin access required');
   }
 
   try {
-    const validated = TraefikRouteSchema.parse(input);
+    const validated = DomainConfigSchema.parse(input);
     
+    // Create main router configuration for the website
     const routeConfig = {
       http: {
         routers: {
-          [validated.name]: {
+          website: {
             rule: `Host(\`${validated.domain}\`)`,
-            service: validated.name,
-            tls: validated.tlsEnabled,
-            middlewares: validated.middlewares || [],
-          },
+            service: "website",
+            tls: validated.enableSsl ? {
+              certResolver: "letsencrypt"
+            } : undefined,
+            entryPoints: ["web", "websecure"]
+          }
         },
         services: {
-          [validated.name]: {
+          website: {
             loadBalancer: {
               servers: [{
-                url: `http://${validated.targetContainer}:${validated.targetPort}`,
-              }],
-            },
-          },
-        },
-      },
+                url: "http://app:3000"  // pointing to the Next.js app service
+              }]
+            }
+          }
+        }
+      }
     };
 
-    const configPath = path.join(TRAEFIK_CONFIG_DIR, 'dynamic', `${validated.name}.yml`);
+    // Write the configuration
+    const configPath = path.join(TRAEFIK_CONFIG_DIR, 'dynamic', 'website.yml');
     await fs.writeFile(configPath, JSON.stringify(routeConfig, null, 2));
-    
-    // Store route in database for management
-    await prisma.traefikRoute.create({
-      data: {
-        name: validated.name,
+
+    // Update settings in database
+    await prisma.settings.upsert({
+      where: { id: "default" },  // assuming we have a default settings record
+      create: {
+        id: "default",
         domain: validated.domain,
-        targetPort: validated.targetPort,
-        targetContainer: validated.targetContainer,
-        tlsEnabled: validated.tlsEnabled,
-        middlewares: validated.middlewares || [],
+        allowSignups: false  // default value
       },
+      update: {
+        domain: validated.domain
+      }
     });
 
-    revalidatePath('/dashboard/traefik');
-    return { success: true, name: validated.name };
+    // Reload Traefik to apply changes
+    try {
+      const traefikContainer = dockerClient.docker.getContainer('traefik');
+      await traefikContainer.restart();
+    } catch (error) {
+      console.error('Failed to restart Traefik:', error);
+      // Continue anyway as config is updated
+    }
+
+    revalidatePath('/dashboard/settings');
+    return { success: true, domain: validated.domain };
   } catch (error) {
-    console.error('Failed to create Traefik route:', error);
-    throw new Error(error instanceof Error ? error.message : 'Failed to create Traefik route');
+    console.error('Failed to configure domain:', error);
+    throw new Error(error instanceof Error ? error.message : 'Failed to configure domain');
   }
 }
 
-export async function updateTraefikConfig(input: TraefikConfigInput) {
+export async function getCurrentDomain() {
   const session = await auth();
   if (!session?.user?.isAdmin) {
     throw new Error('Unauthorized - Admin access required');
   }
 
   try {
-    const validated = TraefikConfigSchema.parse(input);
-    
-    const configPath = path.join(TRAEFIK_CONFIG_DIR, 'traefik.yml');
-    await fs.writeFile(configPath, JSON.stringify(validated, null, 2));
-
-    // Reload Traefik container
-    const traefikContainer = dockerClient.docker.getContainer('traefik');
-    await traefikContainer.restart();
-
-    revalidatePath('/dashboard/traefik');
-    return { success: true };
-  } catch (error) {
-    console.error('Failed to update Traefik config:', error);
-    throw new Error('Failed to update Traefik configuration');
-  }
-}
-
-export async function deleteTraefikRoute(name: string) {
-  const session = await auth();
-  if (!session?.user?.isAdmin) {
-    throw new Error('Unauthorized - Admin access required');
-  }
-
-  try {
-    const configPath = path.join(TRAEFIK_CONFIG_DIR, 'dynamic', `${name}.yml`);
-    await fs.unlink(configPath);
-    
-    // Remove from database
-    await prisma.traefikRoute.delete({
-      where: { name },
+    const settings = await prisma.settings.findFirst({
+      where: { id: "default" }
     });
-
-    revalidatePath('/dashboard/traefik');
-    return { success: true };
+    return settings?.domain || null;
   } catch (error) {
-    console.error('Failed to delete Traefik route:', error);
-    throw new Error('Failed to delete Traefik route');
-  }
-}
-
-export async function getTraefikRoutes() {
-  const session = await auth();
-  if (!session?.user?.isAdmin) {
-    throw new Error('Unauthorized - Admin access required');
-  }
-
-  try {
-    return prisma.traefikRoute.findMany();
-  } catch (error) {
-    console.error('Failed to get Traefik routes:', error);
-    throw new Error('Failed to get Traefik routes');
+    console.error('Failed to get current domain:', error);
+    throw new Error('Failed to get current domain configuration');
   }
 }
