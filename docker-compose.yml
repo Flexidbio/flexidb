@@ -1,3 +1,4 @@
+version: '3.8'
 
 services:
   traefik:
@@ -15,22 +16,23 @@ services:
       - acme:/etc/traefik/acme
       - ./traefik/dynamic:/etc/traefik/dynamic
     command:
-      # Docker configuration
       - --providers.docker=true
       - --providers.docker.exposedbydefault=false
-      # File provider for dynamic configuration
       - --providers.file.directory=/etc/traefik/dynamic
       - --providers.file.watch=true
-      # Entrypoints configuration
       - --entrypoints.web.address=:80
       - --entrypoints.websecure.address=:443
-      # SSL configuration
       - --certificatesresolvers.letsencrypt.acme.email=${ADMIN_EMAIL}
       - --certificatesresolvers.letsencrypt.acme.storage=/etc/traefik/acme/acme.json
       - --certificatesresolvers.letsencrypt.acme.httpchallenge=true
       - --certificatesresolvers.letsencrypt.acme.httpchallenge.entrypoint=web
     networks:
       - flexidb_network
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "http://localhost:80"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
 
   db:
     image: postgres:16-alpine
@@ -56,6 +58,8 @@ services:
       dockerfile: Dockerfile
     container_name: flexidb_app
     restart: always
+    ports:
+      - "3000:3000"
     environment:
       - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
       - NEXTAUTH_SECRET=${NEXTAUTH_SECRET}
@@ -73,6 +77,11 @@ services:
     labels:
       - "traefik.enable=true"
       - "traefik.http.services.app.loadbalancer.server.port=3000"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
 networks:
   flexidb_network:
