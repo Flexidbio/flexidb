@@ -44,7 +44,7 @@ ENV NEXT_TELEMETRY_DISABLED=1
 
 # Install production dependencies only
 COPY package.json bun.lockb ./
-RUN bun install --production
+RUN bun install 
 
 # Copy built application
 COPY --from=builder /app/public ./public
