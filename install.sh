@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-#pring lego
+# Print logo
 cat << "EOF"
 ______   **         **____     **  **     **     **___     ______    
 /\  ___\ /\ \       /\  ___\   /\_\_\_\   /\ \   /\  __-.  /\  == \   
@@ -28,15 +28,38 @@ if [[ $EUID -ne 0 ]]; then
    exit 1
 fi
 
-
-
-
 # Main installation
 log "Starting FlexiDB installation..."
-apt-get update
-apt-get install -y curl wget git docker.io docker-compose 
 
-# Start Docker
+# Install basic requirements
+log "Installing basic requirements..."
+apt-get update
+apt-get install -y curl wget git
+
+# Install Docker using official method
+log "Installing Docker..."
+# Remove any old versions
+apt-get remove -y docker docker.io containerd runc || true
+
+# Install prerequisites
+apt-get install -y ca-certificates gnupg
+
+# Add Docker's official GPG key
+install -m 0755 -d /etc/apt/keyrings
+curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+chmod a+r /etc/apt/keyrings/docker.gpg
+
+# Add Docker repository
+echo \
+  "deb [arch="$(dpkg --print-architecture)" signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
+  "$(. /etc/os-release && echo "$VERSION_CODENAME")" stable" | \
+  tee /etc/apt/sources.list.d/docker.list > /dev/null
+
+# Update apt and install Docker
+apt-get update
+apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+
+# Start and enable Docker
 systemctl start docker
 systemctl enable docker
 
@@ -86,12 +109,12 @@ chmod 600 /etc/traefik/acme/acme.json
 
 # Stop any existing containers
 log "Stopping existing services..."
-docker-compose down --remove-orphans 2>/dev/null || true
+docker compose down --remove-orphans 2>/dev/null || true
 
 # Build and start services
 log "Building and starting services..."
-COMPOSE_DOCKER_CLI_BUILD=1 DOCKER_BUILDKIT=1 docker-compose build --no-cache
-docker-compose up -d
+COMPOSE_DOCKER_CLI_BUILD=1 DOCKER_BUILDKIT=1 docker compose build --no-cache
+docker compose up -d
 
 # Wait for services
 log "Waiting for services to start..."
