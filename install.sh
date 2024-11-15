@@ -201,20 +201,18 @@ setup_traefik_directories() {
 }
 # Main installation function
 main() {
-    log "INFO" "Starting FlexiDB installation..."
+     log "INFO" "Starting FlexiDB installation..."
     
-    # Check system requirements
+    # Install required package for port checking
+    install_packages netcat
+    
+    # Previous installation steps...
     check_system_requirements
-    
-    # Install basic requirements
     install_packages curl wget git
-    
-    # Setup Docker and Docker Compose and Traefik directories
     setup_docker
     setup_docker_compose
     setup_traefik_directories
 
-    # Clone repository
     if [ ! -d "flexidb" ]; then
         log "INFO" "Cloning FlexiDB repository..."
         git clone https://github.com/Flexidbio/flexidb.git
@@ -225,21 +223,37 @@ main() {
         git pull
     fi
     
-    # Setup environment
     setup_environment
     
-    # Start services
-    log "INFO" "Starting FlexiDB services..."
+    # Stop any existing containers
+    log "INFO" "Stopping any existing containers..."
+    docker-compose down 2>/dev/null || true
+    
+    # Build and start services
+    log "INFO" "Building and starting services..."
+    docker-compose build --no-cache
     docker-compose up -d
     
-    # Wait for services to be ready
-    log "INFO" "Waiting for services to be ready..."
+    # Verify services
+    log "INFO" "Waiting for services to start..."
     sleep 10
     
-    log "SUCCESS" "FlexiDB installation completed!"
+    if ! verify_services; then
+        log "ERROR" "Service verification failed"
+        display_service_status
+        exit 1
+    fi
+    
+    # Display success information
+    log "SUCCESS" "FlexiDB installation completed successfully!"
     log "INFO" "You can access FlexiDB at: http://localhost:3000"
-    log "INFO" "Default admin credentials can be found in your .env file"
+    log "INFO" "Admin credentials:"
+    log "INFO" "Email: $ADMIN_EMAIL"
+    log "INFO" "Password: $ADMIN_PASSWORD"
     log "INFO" "Installation log saved to: $LOG_FILE"
+    
+    # Display current service status
+    display_service_status
     
     # Note about Docker group
     if [ -n "$(groups | grep docker)" ]; then
