@@ -39,7 +39,7 @@ ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 
 # Install production dependencies only
-COPY package.json pnpm-lock.yaml ./
+COPY package.json ./
 RUN pnpm install --prod --frozen-lockfile
 
 # Copy built application
