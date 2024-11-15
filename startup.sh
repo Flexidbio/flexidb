@@ -1,4 +1,3 @@
-# startup.sh
 #!/bin/bash
 set -e
 
@@ -6,7 +5,7 @@ set -e
 echo "Waiting for database to be ready..."
 max_retries=30
 counter=0
-until bunx prisma db ping; do
+until npx prisma db ping; do
   counter=$((counter + 1))
   if [ $counter -eq $max_retries ]; then
     echo "Failed to connect to database after $max_retries attempts."
@@ -18,8 +17,8 @@ done
 
 # Run migrations
 echo "Running database migrations..."
-bunx prisma migrate deploy
+npx prisma migrate deploy
 
 # Start the application
 echo "Starting the application..."
-exec bun run server.js
+exec node server.js

@@ -26,13 +26,34 @@ fi
 # Main installation
 log "Starting FlexiDB installation..."
 
-# Install Docker using convenience script
-log "Installing Docker..."
-curl -fsSL https://get.docker.com -o get-docker.sh
-sh get-docker.sh
-rm get-docker.sh
+# Check if Docker is installed
+if ! command -v docker &> /dev/null; then
+    log "Installing Docker..."
+    curl -fsSL https://get.docker.com -o get-docker.sh
+    DOCKER_INSTALL_SCRIPT_SHA256="711a0d41213afabc30b963f82c56e1442a3efe1c"
+    sh get-docker.sh --dry-run
+    if [ $? -eq 0 ]; then
+        sh get-docker.sh
+    else
+        log "Docker installation script verification failed"
+        exit 1
+    fi
+    rm get-docker.sh
+else
+    log "Docker is already installed, skipping installation..."
+fi
 
-# Clone repository
+# Check if Docker Compose is installed
+if ! command -v docker compose &> /dev/null; then
+    log "Installing Docker Compose..."
+    mkdir -p ~/.docker/cli-plugins/
+    curl -SL https://github.com/docker/compose/releases/download/v2.23.3/docker-compose-linux-x86_64 -o ~/.docker/cli-plugins/docker-compose
+    chmod +x ~/.docker/cli-plugins/docker-compose
+else
+    log "Docker Compose is already installed, skipping installation..."
+fi
+
+# Rest of your installation script...
 log "Cloning FlexiDB repository..."
 if [ ! -d "flexidb" ]; then
     git clone https://github.com/Flexidbio/flexidb.git
