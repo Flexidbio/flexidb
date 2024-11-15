@@ -2,19 +2,31 @@
 FROM debian:bookworm-slim AS base
 WORKDIR /app
 
-# Install system dependencies and Bun
+# Install system dependencies, Node.js, and Bun
 RUN apt-get update && apt-get install -y \
     curl \
     openssl \
     build-essential \
     python3 \
     unzip \
+    git \
+    # Dependencies for native modules
+    g++ \
+    make \
+    python3-pip \
+    # Install Node.js for node-gyp
+    && curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
+    && apt-get install -y nodejs \
+    # Install Bun
     && curl -fsSL https://bun.sh/install | bash \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
 # Add Bun to PATH
 ENV PATH="/root/.bun/bin:${PATH}"
+
+# Install node-gyp globally
+RUN npm install -g node-gyp
 
 # Dependencies stage
 FROM base AS deps

@@ -11,7 +11,7 @@
     "prisma:migrate": "prisma migrate dev",
     "prisma:studio": "prisma studio",
     "git:push": "git add . && git commit -m 'update' && git push",
-    "create-admin": "pnpm scripts/create-admin.ts"
+    "create-admin": "yarn run scripts/create-admin.ts"
   },
   "dependencies": {
     "@auth/core": "^0.37.2",
