@@ -24,7 +24,6 @@ warn() {
 if [[ $EUID -ne 0 ]]; then
    error "This script must be run as root/sudo"
    exit 1
-}
 
 # Generate random string
 generate_secure_string() {
