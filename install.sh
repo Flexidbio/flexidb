@@ -11,14 +11,12 @@ generate_secure_string() {
 }
 
 # Main installation
-apt-get install -y figlet
-figlet -f starwars "FlexiDB"
 log "Starting FlexiDB installation..."
 
 # Install required packages
 log "Installing required packages..."
 apt-get update
-apt-get install -y curl wget git docker.io docker-compose figlet
+apt-get install -y curl wget git docker.io docker-compose
 
 # Start Docker if not running
 systemctl start docker || true
