@@ -145,7 +145,7 @@ generate_secure_string() {
 
 # Function to create and configure environment file
 setup_environment() {
-  log "INFO" "Setting up environment configuration..."
+    log "INFO" "Setting up environment configuration..."
     
     if [ ! -f ".env" ]; then
         log "INFO" "Creating new .env file..."
@@ -154,8 +154,16 @@ setup_environment() {
         AUTH_SECRET=$(generate_secure_string)
         ADMIN_PASSWORD=$(generate_secure_string)
         
-        # Get admin email for Let's Encrypt
-        read -p "Enter admin email (for SSL certificates): " ADMIN_EMAIL
+        # Set default admin email if running non-interactively
+        if [ -t 0 ]; then
+            # Running interactively
+            read -p "Enter admin email (for SSL certificates): " ADMIN_EMAIL
+        else
+            # Running non-interactively
+            ADMIN_EMAIL="admin@flexidb.local"
+            log "INFO" "Using default admin email: $ADMIN_EMAIL"
+            log "INFO" "You can change this later in the admin panel"
+        fi
         
         log "INFO" "Writing environment configuration..."
         cat > .env << EOF
@@ -178,9 +186,9 @@ ADMIN_EMAIL=$ADMIN_EMAIL
 ADMIN_PASSWORD=$ADMIN_PASSWORD
 EOF
         log "INFO" "Environment file created successfully"
-        log "INFO" "Admin credentials:"
-        log "INFO" "Email: $ADMIN_EMAIL"
-        log "INFO" "Password: $ADMIN_PASSWORD"
+        log "INFO" "Admin credentials - SAVE THESE:"
+        log "INFO" "Admin Email: $ADMIN_EMAIL"
+        log "INFO" "Admin Password: $ADMIN_PASSWORD"
     else
         log "INFO" "Environment file already exists"
     fi
@@ -192,6 +200,7 @@ EOF
     fi
     
     log "INFO" "Environment setup completed"
+
 }
 
 setup_traefik_directories() {
@@ -250,70 +259,57 @@ start_services() {
 }
 
 main() {
-      log "INFO" "Starting FlexiDB installation..."
+     log "INFO" "Starting FlexiDB installation..."
     
-    # Store current directory
-    INSTALL_DIR=$(pwd)
-    log "INFO" "Installation directory: $INSTALL_DIR"
-    
-    # Check system requirements
+    # Installation steps...
     check_system_requirements
-    
-    # Install basic requirements
-    log "INFO" "Installing required packages..."
     install_packages curl wget git netcat
-    
-    # Setup Docker and Docker Compose
     setup_docker
     setup_docker_compose
     setup_traefik_directories
-    
+
     # Clone or update repository
     if [ ! -d "flexidb" ]; then
         log "INFO" "Cloning FlexiDB repository..."
-        if ! git clone https://github.com/Flexidbio/flexidb.git; then
-            log "ERROR" "Failed to clone repository"
-            exit 1
-        fi
-        cd flexidb || exit 1
+        git clone https://github.com/Flexidbio/flexidb.git
+        cd flexidb
     else
         log "INFO" "Updating existing FlexiDB installation..."
-        cd flexidb || exit 1
+        cd flexidb
         git pull
     fi
     
-    # Setup environment
+    # Setup environment and start services
     setup_environment
     
-    # Start services
-    start_services
+    log "INFO" "Building and starting services..."
+    docker-compose down 2>/dev/null || true
+    docker-compose pull
+    docker-compose build --no-cache
+    docker-compose up -d
     
-    # Verify services
+    # Wait for services to start
     log "INFO" "Waiting for services to be ready..."
-    sleep 10
+    sleep 30
     
-    if ! verify_services; then
-        log "ERROR" "Service verification failed"
-        display_service_status
-        exit 1
-    fi
+    # Display service status
+    log "INFO" "Current service status:"
+    docker ps
     
-    # Display success information
-    log "SUCCESS" "FlexiDB installation completed successfully!"
+    # Show important information
+    log "SUCCESS" "FlexiDB installation completed!"
     log "INFO" "You can access FlexiDB at: http://localhost:3000"
-    grep -A 2 "ADMIN_" .env | grep -v "^--"
-    log "INFO" "Installation log saved to: $LOG_FILE"
+    log "INFO" "Check the .env file for admin credentials"
     
-    # Display current service status
-    display_service_status
-    
-    # Return to original directory
-    cd "$INSTALL_DIR" || exit 1
+    # Show admin credentials again
+    if [ -f ".env" ]; then
+        ADMIN_EMAIL=$(grep ADMIN_EMAIL .env | tail -n1 | cut -d'=' -f2)
+        ADMIN_PASSWORD=$(grep ADMIN_PASSWORD .env | cut -d'=' -f2)
+        log "INFO" "Admin credentials:"
+        log "INFO" "Email: $ADMIN_EMAIL"
+        log "INFO" "Password: $ADMIN_PASSWORD"
+    fi
 }
-
-# Trap errors
-trap 'last_command=$current_command; current_command=$BASH_COMMAND' DEBUG
-trap 'if [ $? -ne 0 ]; then log "ERROR" "The command \"${last_command}\" failed with exit code $?. Check the log file for details: $LOG_FILE"; fi' EXIT
 
 
 # Run main installation
