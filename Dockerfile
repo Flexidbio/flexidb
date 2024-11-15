@@ -31,7 +31,7 @@
   # Install dependencies with native build support
   ENV PYTHON=/usr/bin/python3
   RUN --mount=type=cache,target=/root/.bun \
-      bun install --no-save
+      bun install 
   
   # ---- Builder ----
   FROM base AS builder
