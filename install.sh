@@ -47,7 +47,7 @@ check_system_requirements() {
     if [ $free_space -lt 5120 ]; then
         error "Minimum 5GB of free disk space required. Current: ${free_space}MB"
         exit 1
-    }
+    fi
 }
 
 # Install dependencies
