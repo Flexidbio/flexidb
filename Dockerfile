@@ -52,19 +52,15 @@ COPY --from=builder /app/.next/static ./.next/static
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
+COPY --from=builder /app/scripts/start.sh ./start.sh
 
-# Create start script
-RUN echo '#!/bin/bash\n\
-echo "Waiting for database to be ready..."\n\
-while ! bunx prisma db ping 2>/dev/null; do\n\
-    echo "Database not ready, waiting..."\n\
-    sleep 2\n\
-done\n\
-echo "Database is ready!"\n\
-echo "Running database migrations..."\n\
-bunx prisma migrate deploy\n\
-echo "Starting application..."\n\
-exec node server.js' > start.sh && chmod +x start.sh
+# Create directories for Traefik configuration
+RUN mkdir -p /etc/traefik/dynamic && \
+    chown -R node:node /etc/traefik && \
+    chmod +x ./start.sh
+
+# Switch to non-root user
+USER node
 
 EXPOSE 3000
 
