@@ -217,7 +217,7 @@ main() {
     # Clone repository
     if [ ! -d "flexidb" ]; then
         log "INFO" "Cloning FlexiDB repository..."
-        git clone https://github.com/scshiv29-dev/flexidb.git
+        git clone https://github.com/Flexidbio/flexidb.git
         cd flexidb
     else
         log "INFO" "Updating existing FlexiDB installation..."
