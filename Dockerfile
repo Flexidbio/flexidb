@@ -14,10 +14,10 @@ RUN apt-get update && apt-get install -y \
 
 # Dependencies stage
 FROM base AS deps
-COPY package.json pnpm-lock.yaml ./
+COPY package.json ./
 
 # Install dependencies
-RUN pnpm install --frozen-lockfile
+RUN pnpm install 
 
 # Builder stage
 FROM base AS builder
@@ -39,8 +39,8 @@ ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 
 # Install production dependencies only
-COPY package.json ./
-RUN pnpm install 
+COPY package.json pnpm-lock.yaml ./
+RUN pnpm install --prod --frozen-lockfile
 
 # Copy built application
 COPY --from=builder /app/public ./public
