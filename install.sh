@@ -145,16 +145,19 @@ generate_secure_string() {
 
 # Function to create and configure environment file
 setup_environment() {
-     log "INFO" "Setting up environment configuration..."
+  log "INFO" "Setting up environment configuration..."
     
     if [ ! -f ".env" ]; then
+        log "INFO" "Creating new .env file..."
         # Generate secure passwords
         DB_PASSWORD=$(generate_secure_string)
         AUTH_SECRET=$(generate_secure_string)
+        ADMIN_PASSWORD=$(generate_secure_string)
         
         # Get admin email for Let's Encrypt
         read -p "Enter admin email (for SSL certificates): " ADMIN_EMAIL
         
+        log "INFO" "Writing environment configuration..."
         cat > .env << EOF
 # Database Configuration
 POSTGRES_USER=flexidb_admin
@@ -172,14 +175,23 @@ TRAEFIK_CONFIG_DIR=/etc/traefik
 
 # Initial Admin Account
 ADMIN_EMAIL=$ADMIN_EMAIL
-ADMIN_PASSWORD=$(generate_secure_string)
-
+ADMIN_PASSWORD=$ADMIN_PASSWORD
 EOF
-        log "INFO" "Environment file created with secure random values"
-        log "INFO" "Initial admin password: ${ADMIN_PASSWORD}"
+        log "INFO" "Environment file created successfully"
+        log "INFO" "Admin credentials:"
+        log "INFO" "Email: $ADMIN_EMAIL"
+        log "INFO" "Password: $ADMIN_PASSWORD"
     else
-        log "INFO" "Environment file already exists, skipping"
+        log "INFO" "Environment file already exists"
     fi
+    
+    # Verify .env file was created
+    if [ ! -f ".env" ]; then
+        log "ERROR" "Failed to create .env file"
+        exit 1
+    fi
+    
+    log "INFO" "Environment setup completed"
 }
 
 setup_traefik_directories() {
@@ -199,43 +211,84 @@ setup_traefik_directories() {
     
     log "INFO" "Traefik directories configured successfully"
 }
-# Main installation function
-main() {
-     log "INFO" "Starting FlexiDB installation..."
-    
-    # Install required package for port checking
-    install_packages netcat
-    
-    # Previous installation steps...
-    check_system_requirements
-    install_packages curl wget git
-    setup_docker
-    setup_docker_compose
-    setup_traefik_directories
 
-    if [ ! -d "flexidb" ]; then
-        log "INFO" "Cloning FlexiDB repository..."
-        git clone https://github.com/Flexidbio/flexidb.git
-        cd flexidb
-    else
-        log "INFO" "Updating existing FlexiDB installation..."
-        cd flexidb
-        git pull
-    fi
+start_services() {
+    log "INFO" "Building and starting services..."
     
-    setup_environment
+    # Verify docker-compose.yml exists
+    if [ ! -f "docker-compose.yml" ]; then
+        log "ERROR" "docker-compose.yml not found"
+        exit 1
+    }
     
     # Stop any existing containers
     log "INFO" "Stopping any existing containers..."
     docker-compose down 2>/dev/null || true
     
-    # Build and start services
-    log "INFO" "Building and starting services..."
-    docker-compose build --no-cache
-    docker-compose up -d
+    # Pull latest images
+    log "INFO" "Pulling latest images..."
+    if ! docker-compose pull; then
+        log "ERROR" "Failed to pull Docker images"
+        exit 1
+    fi
+    
+    # Build services
+    log "INFO" "Building services..."
+    if ! docker-compose build --no-cache; then
+        log "ERROR" "Failed to build services"
+        exit 1
+    fi
+    
+    # Start services
+    log "INFO" "Starting services..."
+    if ! docker-compose up -d; then
+        log "ERROR" "Failed to start services"
+        exit 1
+    fi
+    
+    log "INFO" "Services started successfully"
+}
+main() {
+      log "INFO" "Starting FlexiDB installation..."
+    
+    # Store current directory
+    INSTALL_DIR=$(pwd)
+    log "INFO" "Installation directory: $INSTALL_DIR"
+    
+    # Check system requirements
+    check_system_requirements
+    
+    # Install basic requirements
+    log "INFO" "Installing required packages..."
+    install_packages curl wget git netcat
+    
+    # Setup Docker and Docker Compose
+    setup_docker
+    setup_docker_compose
+    setup_traefik_directories
+    
+    # Clone or update repository
+    if [ ! -d "flexidb" ]; then
+        log "INFO" "Cloning FlexiDB repository..."
+        if ! git clone https://github.com/Flexidbio/flexidb.git; then
+            log "ERROR" "Failed to clone repository"
+            exit 1
+        fi
+        cd flexidb || exit 1
+    else
+        log "INFO" "Updating existing FlexiDB installation..."
+        cd flexidb || exit 1
+        git pull
+    fi
+    
+    # Setup environment
+    setup_environment
+    
+    # Start services
+    start_services
     
     # Verify services
-    log "INFO" "Waiting for services to start..."
+    log "INFO" "Waiting for services to be ready..."
     sleep 10
     
     if ! verify_services; then
@@ -247,22 +300,20 @@ main() {
     # Display success information
     log "SUCCESS" "FlexiDB installation completed successfully!"
     log "INFO" "You can access FlexiDB at: http://localhost:3000"
-    log "INFO" "Admin credentials:"
-    log "INFO" "Email: $ADMIN_EMAIL"
-    log "INFO" "Password: $ADMIN_PASSWORD"
+    grep -A 2 "ADMIN_" .env | grep -v "^--"
     log "INFO" "Installation log saved to: $LOG_FILE"
     
     # Display current service status
     display_service_status
     
-    # Note about Docker group
-    if [ -n "$(groups | grep docker)" ]; then
-        log "WARNING" "You may need to log out and back in for Docker group changes to take effect"
-    fi
+    # Return to original directory
+    cd "$INSTALL_DIR" || exit 1
 }
 
 # Trap errors
-trap 'log "ERROR" "Installation failed. Check the log file for details: $LOG_FILE"' ERR
+trap 'last_command=$current_command; current_command=$BASH_COMMAND' DEBUG
+trap 'if [ $? -ne 0 ]; then log "ERROR" "The command \"${last_command}\" failed with exit code $?. Check the log file for details: $LOG_FILE"; fi' EXIT
+
 
 # Run main installation
 main "$@"
