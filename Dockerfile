@@ -8,6 +8,7 @@ RUN apt-get update && apt-get install -y \
     openssl \
     build-essential \
     python3 \
+    unzip \
     && curl -fsSL https://bun.sh/install | bash \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
