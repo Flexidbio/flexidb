@@ -13,6 +13,10 @@
       gcc \
       g++ \
       make \
+      python3 \
+      nodejs \
+      npm \
+      && npm install -g node-gyp \
       && apt-get clean \
       && rm -rf /var/lib/apt/lists/*
   
@@ -23,9 +27,11 @@
   FROM base AS deps
   # Copy package files
   COPY package.json bun.lockb ./
-  # Install dependencies
+  
+  # Install dependencies with native build support
+  ENV PYTHON=/usr/bin/python3
   RUN --mount=type=cache,target=/root/.bun \
-      bun install
+      bun install --no-save
   
   # ---- Builder ----
   FROM base AS builder
@@ -65,7 +71,7 @@
   EXPOSE 3000
   
   # Create start script
-  RUN echo '#!/bin/bash\n\
+  RUN echo '#!/bin/sh\n\
   echo "Waiting for database..."\n\
   while ! bunx prisma db ping 2>/dev/null; do\n\
     sleep 2\n\
