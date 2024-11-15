@@ -15,19 +15,20 @@ RUN apt-get update && apt-get install -y \
 # Dependencies stage
 FROM base AS deps
 COPY package.json ./
+COPY prisma ./prisma
 RUN pnpm install
 
 # Builder stage
 FROM base AS builder
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
+COPY --from=deps /app/prisma ./prisma
 COPY . .
 
 # Generate Prisma Client and build application
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_ENV=production
-RUN npx prisma generate && \
-    pnpm build
+RUN pnpm run build
 
 # Runner stage
 FROM base AS runner
@@ -43,6 +44,9 @@ COPY --from=builder /app/public ./public
 COPY --from=builder /app/.next ./.next
 COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/node_modules ./node_modules
+
+# Install production dependencies
+RUN pnpm install
 
 # Create directories for Traefik configuration
 RUN mkdir -p /etc/traefik/dynamic && \
