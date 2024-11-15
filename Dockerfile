@@ -40,7 +40,7 @@ ENV NEXT_TELEMETRY_DISABLED=1
 
 # Install production dependencies only
 COPY package.json ./
-RUN pnpm install --prod --frozen-lockfile
+RUN pnpm install 
 
 # Copy built application
 COPY --from=builder /app/public ./public
