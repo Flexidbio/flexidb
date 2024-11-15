@@ -67,8 +67,6 @@ fi
 log "Setting up environment..."
 DB_PASSWORD=$(openssl rand -base64 24)
 AUTH_SECRET=$(openssl rand -base64 24)
-ADMIN_PASSWORD=$(openssl rand -base64 24)
-ADMIN_EMAIL="admin@flexidb.local"
 
 cat > .env << EOF
 # Database Configuration
@@ -81,9 +79,7 @@ NEXTAUTH_SECRET=$AUTH_SECRET
 NEXTAUTH_URL=http://localhost:3000
 NEXT_PUBLIC_APP_URL=http://localhost:3000
 
-# Initial Admin Account
-ADMIN_EMAIL=$ADMIN_EMAIL
-ADMIN_PASSWORD=$ADMIN_PASSWORD
+
 EOF
 
 # Setup Traefik directory
@@ -102,10 +98,8 @@ log "Current containers:"
 docker ps
 
 # Save credentials
+# Save credentials
 echo "----------------------------------------"
 echo "Installation completed!"
-echo "Admin Credentials:"
-echo "Email: $ADMIN_EMAIL"
-echo "Password: $ADMIN_PASSWORD"
 echo "Access FlexiDB at: http://localhost:3000"
 echo "----------------------------------------"
