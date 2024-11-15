@@ -7,14 +7,14 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle, Loader2 } from "lucide-react";
-import { useCreateTraefikRoute, useCurrentDomain } from "@/hooks/use-traefik";
+import { useConfigureDomain, useCurrentDomain } from "@/hooks/use-traefik";
 
 export function DomainSettings() {
   const { data: currentDomain, isLoading: isLoadingDomain } = useCurrentDomain();
   const [domain, setDomain] = useState("");
   const [error, setError] = useState<string | null>(null);
 
-  const { mutate: createRoute, isPending } = useCreateTraefikRoute();
+  const { mutate: configureDomain, isPending } = useConfigureDomain();
 
   useEffect(() => {
     if (currentDomain) {
@@ -31,14 +31,10 @@ export function DomainSettings() {
       return;
     }
 
-    // Create Traefik route configuration
-    createRoute({
-      name: "flexidb-app",
+    // Configure domain with SSL enabled by default
+    configureDomain({
       domain: domain.trim(),
-      targetPort: 3000,
-      targetContainer: "localhost", // or your Next.js container name if running in Docker
-      tlsEnabled: true, // Enable HTTPS
-      middlewares: [], // Add any required middlewares
+      enableSsl: true
     });
   };
 
