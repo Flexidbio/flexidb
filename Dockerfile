@@ -1,22 +1,26 @@
-# Base Node.js image
-FROM node:20-slim AS base
+# Base Debian slim image
+FROM debian:bookworm-slim AS base
 WORKDIR /app
 
-# Install system dependencies and pnpm
+# Install system dependencies and Bun
 RUN apt-get update && apt-get install -y \
     curl \
     openssl \
     build-essential \
     python3 \
-    && npm install -g pnpm \
+    unzip \
+    && curl -fsSL https://bun.sh/install | bash \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
+
+# Add Bun to PATH
+ENV PATH="/root/.bun/bin:${PATH}"
 
 # Dependencies stage
 FROM base AS deps
 COPY package.json ./
 COPY prisma ./prisma
-RUN pnpm install
+RUN bun install
 
 # Builder stage
 FROM base AS builder
@@ -28,7 +32,7 @@ COPY . .
 # Generate Prisma Client and build application
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_ENV=production
-RUN pnpm run build
+RUN bun run build
 
 # Runner stage
 FROM base AS runner
@@ -46,16 +50,19 @@ COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/node_modules ./node_modules
 
 # Install production dependencies
-RUN pnpm install
+RUN bun install --production
 
 # Create directories for Traefik configuration
-RUN mkdir -p /etc/traefik/dynamic && \
-    chown -R node:node /etc/traefik
+RUN mkdir -p /etc/traefik/dynamic
+
+# Create non-root user
+RUN useradd -m app
+RUN chown -R app:app /app /etc/traefik
 
 # Switch to non-root user
-USER node
+USER app
 
 EXPOSE 3000
 
-# Start Next.js
-CMD ["pnpm", "start"]
+# Start Next.js with Bun
+CMD ["bun", "run", "start"]
