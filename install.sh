@@ -219,7 +219,7 @@ start_services() {
     if [ ! -f "docker-compose.yml" ]; then
         log "ERROR" "docker-compose.yml not found"
         exit 1
-    }
+    fi
     
     # Stop any existing containers
     log "INFO" "Stopping any existing containers..."
