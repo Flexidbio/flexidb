@@ -248,6 +248,7 @@ start_services() {
     
     log "INFO" "Services started successfully"
 }
+
 main() {
       log "INFO" "Starting FlexiDB installation..."
     
