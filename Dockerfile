@@ -15,7 +15,7 @@ FROM base AS deps
 COPY package.json bun.lockb ./
 COPY prisma ./prisma
 # Remove problematic native modules from dependencies
-RUN sed -i '/bufferutil/d; /utf-8-validate/d; /node-pty/d' package.json
+
 RUN bun install
 
 # Build
@@ -39,8 +39,7 @@ COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/package.json ./package.json
 
 # Remove development dependencies for production
-RUN sed -i '/bufferutil/d; /utf-8-validate/d; /node-pty/d' package.json && \
-    bun install --production
+RUN bun install --production
 
 EXPOSE 3000
 
