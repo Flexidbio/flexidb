@@ -1,80 +1,39 @@
-# Base Debian slim image
-FROM debian:bookworm-slim AS base
+FROM oven/bun:1 AS base
 WORKDIR /app
 
-# Install system dependencies, Node.js, and Bun
+# Install system dependencies
 RUN apt-get update && apt-get install -y \
-    curl \
-    openssl \
-    build-essential \
     python3 \
-    unzip \
-    git \
-    # Dependencies for native modules
-    g++ \
-    make \
     python3-pip \
-    # Install Node.js for node-gyp
-    && curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
-    && apt-get install -y nodejs \
-    # Install Bun
-    && curl -fsSL https://bun.sh/install | bash \
+    build-essential \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# Add Bun to PATH
-ENV PATH="/root/.bun/bin:${PATH}"
-
-# Install node-gyp globally
-RUN npm install -g node-gyp
-
-# Dependencies stage
+# Dependencies
 FROM base AS deps
-COPY package.json ./
+COPY package.json bun.lockb ./
 COPY prisma ./prisma
 RUN bun install
 
-# Builder stage
+# Build
 FROM base AS builder
-WORKDIR /app
-COPY --from=deps /app/node_modules ./node_modules
-COPY --from=deps /app/prisma ./prisma
 COPY . .
-
-# Generate Prisma Client and build application
-ENV NEXT_TELEMETRY_DISABLED=1
-ENV NODE_ENV=production
+COPY --from=deps /app/node_modules ./node_modules
+RUN bunx prisma generate
 RUN bun run build
 
-# Runner stage
+# Production
 FROM base AS runner
 WORKDIR /app
 
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 
-# Copy necessary files
-COPY --from=builder /app/package.json ./
-COPY --from=builder /app/next.config.js ./
+
 COPY --from=builder /app/public ./public
 COPY --from=builder /app/.next ./.next
-COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/prisma ./prisma
+COPY package.json ./
 
-# Install production dependencies
-RUN bun install --production
-
-# Create directories for Traefik configuration
-RUN mkdir -p /etc/traefik/dynamic
-
-# Create non-root user
-RUN useradd -m app
-RUN chown -R app:app /app /etc/traefik
-
-# Switch to non-root user
-USER app
-
-EXPOSE 3000
-
-# Start Next.js with Bun
 CMD ["bun", "run", "start"]

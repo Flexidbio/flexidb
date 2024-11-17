@@ -79,7 +79,7 @@ export const {
       },
     }),
   ],
-  adapter: PrismaAdapter(prisma),
+  adapter: PrismaAdapter(prisma) as any,
   session: { strategy: "jwt" },
   debug: process.env.NODE_ENV === "development",
 });

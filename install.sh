@@ -93,12 +93,8 @@ chmod 600 /etc/traefik/acme/acme.json
 log "Starting services..."
 docker compose up -d --build
 
-# Show status
-log "Current containers:"
-docker ps
 
-# Save credentials
-# Save credentials
+
 echo "----------------------------------------"
 echo "Installation completed!"
 echo "Access FlexiDB at: http://localhost:3000"
