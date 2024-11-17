@@ -23,17 +23,6 @@ generate_password() {
   openssl rand -base64 24 | tr -d '/+=' | cut -c1-32
 }
 
-# Function to check if .env file exists and has required variables
-check_env_file() {
-  if [ ! -f .env ]; then
-    echo -e "${YELLOW}No .env file found. Creating one...${NC}"
-    create_env_file
-  else
-    echo -e "${GREEN}Found existing .env file${NC}"
-    verify_env_variables
-  fi
-}
-
 # Function to create .env file with required variables
 create_env_file() {
   cat > .env << EOF
@@ -71,44 +60,51 @@ verify_env_variables() {
   done
 
   if [ ${#missing_vars[@]} -ne 0 ]; then
-    echo -e "${RED}Missing or empty required variables in .env file:${NC}"
-    printf '%s\n' "${missing_vars[@]}"
-    echo -e "${YELLOW}Would you like to regenerate the .env file? [y/N]${NC}"
-    read -r answer
-    if [[ "$answer" =~ ^[Yy]$ ]]; then
-      create_env_file
-    else
-      echo -e "${RED}Please set the missing variables manually and try again${NC}"
-      exit 1
-    fi
+    echo -e "${YELLOW}Missing required variables, regenerating .env file...${NC}"
+    create_env_file
+  fi
+}
+
+# Function to check if .env file exists and has required variables
+check_env_file() {
+  if [ ! -f .env ]; then
+    echo -e "${YELLOW}No .env file found. Creating one...${NC}"
+    create_env_file
+  else
+    echo -e "${GREEN}Found existing .env file${NC}"
+    verify_env_variables
   fi
 }
 
 # Function to verify Docker and Docker Compose installation
 verify_docker() {
   if ! command -v docker &> /dev/null; then
-    echo -e "${RED}Docker is not installed. Please install Docker first${NC}"
-    exit 1
+    echo -e "${RED}Docker is not installed. Installing Docker...${NC}"
+    curl -fsSL https://get.docker.com -o get-docker.sh
+    sh get-docker.sh
+    rm get-docker.sh
   fi
 
   if ! docker info &> /dev/null; then
-    echo -e "${RED}Docker daemon is not running or current user doesn't have permissions${NC}"
-    exit 1
+    echo -e "${RED}Docker daemon is not running. Starting Docker...${NC}"
+    sudo systemctl start docker
+    sudo systemctl enable docker
   fi
 
-  if ! command -v docker-compose &> /dev/null; then
-    echo -e "${RED}Docker Compose is not installed. Please install Docker Compose first${NC}"
-    exit 1
+  # Add current user to docker group if not already added
+  if ! groups | grep -q docker; then
+    sudo usermod -aG docker $USER
+    echo -e "${YELLOW}Added current user to docker group. You may need to log out and back in.${NC}"
   fi
 }
 
 # Function to setup Traefik directories
 setup_traefik() {
   echo -e "${YELLOW}Setting up Traefik directories...${NC}"
-  sudo mkdir -p /etc/traefik/dynamic
-  sudo mkdir -p /etc/traefik/acme
-  sudo touch /etc/traefik/acme/acme.json
-  sudo chmod 600 /etc/traefik/acme/acme.json
+  mkdir -p /etc/traefik/dynamic
+  mkdir -p /etc/traefik/acme
+  touch /etc/traefik/acme/acme.json
+  chmod 600 /etc/traefik/acme/acme.json
 }
 
 # Function to check container health
@@ -131,10 +127,23 @@ check_container_health() {
   return 1
 }
 
+# Function to clone repository
+clone_repository() {
+  if [ ! -d "flexidb" ]; then
+    echo -e "${YELLOW}Cloning FlexiDB repository...${NC}"
+    git clone https://github.com/Flexidbio/flexidb.git
+    cd flexidb
+  else
+    echo -e "${YELLOW}Repository already exists. Updating...${NC}"
+    cd flexidb
+    git pull
+  fi
+}
+
 # Function to start services
 start_services() {
   echo -e "${GREEN}Starting Docker containers...${NC}"
-  docker-compose down -v
+  docker-compose down -v || true
   docker-compose up -d
 }
 
@@ -148,6 +157,9 @@ show_completion() {
   echo -e "  Database: ${YELLOW}flexidb${NC}"
   echo -e "  Username: ${YELLOW}postgres${NC}"
   echo -e "  Password: ${YELLOW}postgres${NC}\n"
+  
+  # Show the generated NEXTAUTH_SECRET
+  echo -e "Your NEXTAUTH_SECRET is set in the .env file"
 }
 
 # Main execution
@@ -156,6 +168,9 @@ main() {
 
   # Verify Docker installation
   verify_docker
+
+  # Clone repository
+  clone_repository
 
   # Check and setup environment variables
   check_env_file
