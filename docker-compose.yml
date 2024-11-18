@@ -1,14 +1,12 @@
-version: '3.8'
-
 services:
   db:
     image: postgres:16-alpine
     container_name: flexidb_postgres
     restart: always
     environment:
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=postgres
-      - POSTGRES_DB=flexidb
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: flexidb
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -37,36 +35,9 @@ services:
     networks:
       - flexidb_network
 
-  traefik:
-    image: traefik:v2.10
-    container_name: flexidb_traefik
-    restart: always
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - /etc/traefik:/etc/traefik
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-      - acme:/etc/traefik/acme
-    command:
-      - --api.insecure=true
-      - --providers.docker=true
-      - --providers.docker.exposedbydefault=false
-      - --entrypoints.web.address=:80
-      - --entrypoints.websecure.address=:443
-      - --certificatesresolvers.letsencrypt.acme.email=admin@example.com
-      - --certificatesresolvers.letsencrypt.acme.storage=/etc/traefik/acme/acme.json
-      - --certificatesresolvers.letsencrypt.acme.httpchallenge=true
-      - --certificatesresolvers.letsencrypt.acme.httpchallenge.entrypoint=web
-    networks:
-      - flexidb_network
-    depends_on:
-      - app
-
 networks:
   flexidb_network:
     driver: bridge
 
 volumes:
   postgres_data:
-  acme:

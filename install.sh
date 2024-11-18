@@ -29,17 +29,27 @@ generate_password() {
 # Function to create .env file with required variables
 create_env_file() {
   echo -e "${YELLOW}Creating new .env file...${NC}"
+  
+  # Generate passwords and get server IP
+  DB_PASSWORD=$(generate_password)
+  AUTH_SECRET=$(generate_password)
+  SERVER_IP=$(get_server_ip)
+  
   cat > "${INSTALL_DIR}/.env" << EOF
 # Database Configuration
-DATABASE_URL=postgresql://postgres:postgres@localhost:5432/flexidb
+POSTGRES_USER=postgres
+POSTGRES_PASSWORD=${DB_PASSWORD}
+POSTGRES_DB=flexidb
+DATABASE_URL=postgresql://postgres:${DB_PASSWORD}@db:5432/flexidb
 
 # Auth Configuration
-NEXTAUTH_SECRET=$(generate_password)
-NEXTAUTH_URL=http://localhost:3000
-NEXT_PUBLIC_APP_URL=http://localhost:3000
+NEXTAUTH_SECRET=${AUTH_SECRET}
+NEXTAUTH_URL=http://${SERVER_IP}:3000
+NEXT_PUBLIC_APP_URL=http://${SERVER_IP}:3000
 
 # Docker Configuration
 COMPOSE_PROJECT_NAME=flexidb
+DOMAIN=${SERVER_IP}
 EOF
 
   echo -e "${GREEN}Created new .env file with secure configuration${NC}"
@@ -63,7 +73,16 @@ verify_docker() {
   
   echo -e "${GREEN}Docker is ready${NC}"
 }
-
+# Function to get server IP
+get_server_ip() {
+  # Try to get IPv4 address, preferring external interfaces
+  SERVER_IP=$(ip -4 addr show | grep -oP '(?<=inet\s)\d+(\.\d+){3}' | grep -v '^127\.' | head -n 1)
+  if [ -z "$SERVER_IP" ]; then
+    # Fallback to hostname -I and take first IP
+    SERVER_IP=$(hostname -I | awk '{print $1}')
+  fi
+  echo "$SERVER_IP"
+}
 # Function to setup Traefik directories
 setup_traefik() {
   echo -e "${YELLOW}Setting up Traefik directories...${NC}"

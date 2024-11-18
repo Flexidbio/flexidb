@@ -14,7 +14,11 @@ RUN apt-get update && apt-get install -y \
 FROM base AS deps
 COPY package.json bun.lockb ./
 COPY prisma ./prisma
-# Remove problematic native modules from dependencies
+COPY .env.example .env
+
+# Remove problematic dependencies
+RUN sed -i '/node-pty/d' package.json
+RUN sed -i '/ssh2/d' package.json
 
 RUN bun install
 
@@ -22,6 +26,7 @@ RUN bun install
 FROM base AS builder
 COPY . .
 COPY --from=deps /app/node_modules ./node_modules
+COPY --from=deps /app/.env ./
 RUN bunx prisma generate
 RUN bun run build
 
@@ -37,10 +42,10 @@ COPY --from=builder /app/.next ./.next
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/package.json ./package.json
+COPY --from=builder /app/.env ./
 
-# Remove development dependencies for production
 RUN bun install --production
 
 EXPOSE 3000
 
-CMD ["bun", "run", "start"]
+CMD ["bun", "run", "dev"]
