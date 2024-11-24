@@ -1,8 +1,8 @@
 import { Providers } from "@/components/providers/providers"
-import { ThemeProvider } from "@/components/providers/theme-provider"
 import { cn } from "@/lib/utils"
-import { Toaster } from "@/components/ui/sonner"
+import { Toaster } from "sonner"
 import "./globals.css"
+
 export default function RootLayout({
   children,
 }: {
@@ -16,17 +16,10 @@ export default function RootLayout({
           "min-h-screen bg-background font-sans antialiased"
         )}
       >
-        <ThemeProvider
-          attribute="class"
-          defaultTheme="system"
-          enableSystem
-          disableTransitionOnChange
-        >
-        
-          <Providers>{children}
+        <Providers>
+          {children}
           <Toaster position="bottom-right" />
-          </Providers>
-        </ThemeProvider>
+        </Providers>
       </body>
     </html>
   )
