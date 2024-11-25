@@ -45,6 +45,12 @@ get_server_ip() {
   echo "$SERVER_IP"
 }
 
+# Function to generate a random email
+generate_email() {
+  local random_string=$(openssl rand -hex 8)
+  echo "admin-${random_string}@flexib.site"
+}
+
 # Function to create .env file with required variables
 create_env_file() {
   echo -e "${YELLOW}Creating new .env file...${NC}"
@@ -53,6 +59,7 @@ create_env_file() {
   DB_PASSWORD=$(generate_password)
   AUTH_SECRET=$(generate_password)
   SERVER_IP=$(get_server_ip)
+  ADMIN_EMAIL=$(generate_email)
   
   # Ensure directory exists
   mkdir -p "${INSTALL_DIR}"
@@ -78,7 +85,7 @@ COMPOSE_PROJECT_NAME=flexidb
 DOMAIN=${SERVER_IP}
 
 # Traefik Configuration
-ACME_EMAIL=admin@${SERVER_IP}
+ACME_EMAIL=${ADMIN_EMAIL}
 TRAEFIK_CONFIG_DIR=/etc/traefik
 EOF
 

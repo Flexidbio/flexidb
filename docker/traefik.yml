@@ -23,7 +23,7 @@ providers:
 certificatesResolvers:
   letsencrypt:
     acme:
-      email: "${ACME_EMAIL}"
+      email: admin@flexib.site
       storage: /etc/traefik/acme/acme.json
       httpChallenge:
         entryPoint: web
