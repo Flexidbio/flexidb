@@ -204,7 +204,7 @@ setup_database() {
   echo -e "${YELLOW}Waiting for database to be ready...${NC}"
   timeout=30
   while [ $timeout -gt 0 ]; do
-    if docker compose exec db pg_isready -h localhost -U postgres > /dev/null 2>&1; then
+    if docker compose exec -T db pg_isready -h localhost -U postgres > /dev/null 2>&1; then
       echo -e "${GREEN}Database is ready!${NC}"
       break
     fi
@@ -218,9 +218,9 @@ setup_database() {
     exit 1
   fi
 
-  # Run Prisma migrations
+  # Run Prisma migrations with -T flag
   echo -e "${YELLOW}Running database migrations...${NC}"
-  docker compose exec app bunx prisma migrate deploy
+  docker compose exec -T app bunx prisma migrate deploy
   
   if [ $? -eq 0 ]; then
     echo -e "${GREEN}Database schema setup complete${NC}"
