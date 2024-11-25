@@ -231,6 +231,21 @@ setup_database() {
   fi
 }
 
+# Function to setup Docker permissions
+setup_docker_permissions() {
+  echo -e "${YELLOW}Setting up Docker permissions...${NC}"
+  
+  # Ensure docker group exists with correct GID
+  if ! getent group docker > /dev/null; then
+    sudo groupadd -g 998 docker
+  fi
+  
+  # Set permissions on Docker socket
+  sudo chmod 666 /var/run/docker.sock
+  
+  echo -e "${GREEN}Docker permissions configured${NC}"
+}
+
 # Main installation function
 main() {
   echo -e "${YELLOW}Starting FlexiDB installation...${NC}"
@@ -254,6 +269,9 @@ main() {
   
   # Setup Traefik
   setup_traefik
+  
+  # Setup Docker permissions
+  setup_docker_permissions
   
   # Start services
   start_services
