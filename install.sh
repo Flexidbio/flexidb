@@ -195,6 +195,41 @@ wait_for_services() {
   return 1
 }
 
+# Add this new function after setup_repository() and before start_services()
+setup_database() {
+  echo -e "${YELLOW}Setting up database schema...${NC}"
+  cd "$INSTALL_DIR"
+  
+  # Wait for database to be ready
+  echo -e "${YELLOW}Waiting for database to be ready...${NC}"
+  timeout=30
+  while [ $timeout -gt 0 ]; do
+    if docker compose exec db pg_isready -h localhost -U postgres > /dev/null 2>&1; then
+      echo -e "${GREEN}Database is ready!${NC}"
+      break
+    fi
+    echo -e "${YELLOW}Waiting for database... ($timeout seconds remaining)${NC}"
+    sleep 1
+    ((timeout--))
+  done
+
+  if [ $timeout -eq 0 ]; then
+    echo -e "${RED}Database failed to become ready within timeout${NC}"
+    exit 1
+  fi
+
+  # Run Prisma migrations
+  echo -e "${YELLOW}Running database migrations...${NC}"
+  docker compose exec app bunx prisma migrate deploy
+  
+  if [ $? -eq 0 ]; then
+    echo -e "${GREEN}Database schema setup complete${NC}"
+  else
+    echo -e "${RED}Failed to setup database schema${NC}"
+    exit 1
+  fi
+}
+
 # Main installation function
 main() {
   echo -e "${YELLOW}Starting FlexiDB installation...${NC}"
@@ -218,13 +253,17 @@ main() {
   
   # Setup Traefik
   setup_traefik
-  SERVER_IP=$(get_server_ip)
+  
   # Start services
   start_services
+  
+  # Setup database schema
+  setup_database
   
   # Wait for services to be ready
   wait_for_services
   
+  SERVER_IP=$(get_server_ip)
   echo -e "\n${GREEN}✨ FlexiDB installation completed!${NC} Access your server at http://${SERVER_IP}:3000"
 }
 
