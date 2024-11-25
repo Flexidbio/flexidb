@@ -1,10 +1,21 @@
 FROM oven/bun:1 AS base
 WORKDIR /app
 
+# Install system dependencies including Python
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    python3 \
+    python3-pip \
+    make \
+    g++ \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
 # Install dependencies only when needed
 FROM base AS deps
 COPY package.json bun.lockb ./
-RUN bun install --frozen-lockfile
+# Install dependencies without frozen lockfile to avoid issues with native modules
+RUN bun install
 
 # Copy Prisma schema and generate client
 COPY prisma ./prisma/
@@ -37,10 +48,11 @@ RUN adduser --system --uid 1001 nextjs
 
 # Copy built files
 COPY --from=builder /app/public ./public
-COPY --from=builder /app/.next/standalone ./
-COPY --from=builder /app/.next/static ./.next/static
+COPY --from=builder /app/.next ./.next
 COPY --from=builder /app/prisma ./prisma
-COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
+COPY --from=builder /app/package.json ./package.json
+COPY --from=builder /app/bun.lockb ./bun.lockb
+COPY --from=builder /app/node_modules ./node_modules
 
 # Set correct permissions
 RUN chown -R nextjs:nodejs /app
@@ -55,4 +67,4 @@ ENV PORT 3000
 ENV HOSTNAME "0.0.0.0"
 
 # Start the application
-CMD ["bun", "run", "./server.js"]
+CMD ["bun", "run", "start"]
