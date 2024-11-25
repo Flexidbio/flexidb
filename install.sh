@@ -8,7 +8,7 @@ YELLOW='\033[1;33m'
 NC='\033[0m'
 
 # Working directory
-INSTALL_DIR="/root/flexidb"
+INSTALL_DIR="/"
 
 # Print logo
 cat << "EOF"
