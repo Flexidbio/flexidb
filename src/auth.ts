@@ -7,8 +7,20 @@ import { AdapterUser } from "next-auth/adapters";
 
 
 export const {auth,signIn,signOut,handlers}  =NextAuth({
-  trustHost: false,
+  trustHost: true,
   adapter: PrismaAdapter(prisma) as any,
+  useSecureCookies: false,
+  cookies: {
+    sessionToken: {
+      name: "next-auth.session-token",
+      options: {
+        httpOnly: true,
+        sameSite: 'lax',
+        path: '/',
+        secure: false
+      }
+    }
+  },
   session: { strategy: "jwt" },
   pages: {
     signIn: "/auth/login",
