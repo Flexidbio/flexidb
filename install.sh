@@ -66,6 +66,10 @@ NEXT_PUBLIC_APP_URL=http://${SERVER_IP}:3000
 # Docker Configuration
 COMPOSE_PROJECT_NAME=flexidb
 DOMAIN=${SERVER_IP}
+
+# Traefik Configuration
+ACME_EMAIL=admin@${SERVER_IP}
+TRAEFIK_CONFIG_DIR=/etc/traefik
 EOF
 
   echo -e "${GREEN}Created new .env file at ${INSTALL_DIR}/.env${NC}"
@@ -95,10 +99,18 @@ verify_docker() {
 # Function to setup Traefik directories
 setup_traefik() {
   echo -e "${YELLOW}Setting up Traefik directories...${NC}"
+  
+  # Create directories
   mkdir -p /etc/traefik/dynamic
   mkdir -p /etc/traefik/acme
+  
+  # Create and set permissions for ACME storage
   touch /etc/traefik/acme/acme.json
   chmod 600 /etc/traefik/acme/acme.json
+  
+  # Copy Traefik configuration
+  cp "${INSTALL_DIR}/docker/traefik.yml" /etc/traefik/traefik.yml
+  
   echo -e "${GREEN}Traefik directories setup complete${NC}"
 }
 
