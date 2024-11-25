@@ -8,7 +8,7 @@ YELLOW='\033[1;33m'
 NC='\033[0m'
 
 # Working directory
-INSTALL_DIR="/root/flexidb"
+INSTALL_DIR="/flexidb"
 
 # Print logo
 cat << "EOF"
@@ -117,7 +117,15 @@ setup_traefik() {
 # Function to clone or update repository
 setup_repository() {
   echo -e "${YELLOW}Setting up FlexiDB repository...${NC}"
-  if [ -d "$INSTALL_DIR" ]; then
+  
+  # Remove directory if it exists but is not a git repo
+  if [ -d "$INSTALL_DIR" ] && [ ! -d "$INSTALL_DIR/.git" ]; then
+    echo -e "${YELLOW}Removing existing non-git directory...${NC}"
+    rm -rf "$INSTALL_DIR"
+  fi
+  
+  # Clone or update repository
+  if [ -d "$INSTALL_DIR/.git" ]; then
     echo -e "${YELLOW}Updating existing repository...${NC}"
     cd "$INSTALL_DIR"
     git pull origin main
@@ -126,6 +134,7 @@ setup_repository() {
     git clone https://github.com/Flexidbio/flexidb.git "$INSTALL_DIR"
     cd "$INSTALL_DIR"
   fi
+  
   echo -e "${GREEN}Repository setup complete${NC}"
 }
 
