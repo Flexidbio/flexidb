@@ -1,7 +1,8 @@
 import { Providers } from '@/components/providers/providers'
 
 import { checkDatabaseConnection } from '@/lib/actions/db'
-
+import { Toaster } from 'sonner'
+import "./globals.css"
 export default async function RootLayout({
   children,
 }: {
