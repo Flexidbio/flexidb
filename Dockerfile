@@ -15,12 +15,14 @@ RUN apt-get update && apt-get install -y \
 FROM base AS deps
 COPY package.json bun.lockb ./
 
+# Copy env file for build
+COPY .env.example .env
+
 # Install dependencies without running postinstall
 RUN bun install --no-postinstall
 
 # Copy Prisma files and generate client
-COPY prisma/schema.prisma ./prisma/
-RUN bunx prisma validate
+COPY prisma ./prisma/
 RUN bunx prisma generate
 
 # Builder
