@@ -1,24 +1,15 @@
 FROM oven/bun:1 AS base
 WORKDIR /app
 
-# Install system dependencies including Python and Docker CLI
+# Install only the essential system dependencies
 RUN apt-get update && apt-get install -y \
     build-essential \
     python3 \
     python3-pip \
     make \
     g++ \
-    apt-transport-https \
-    ca-certificates \
-    curl \
-    gnupg \
-    lsb-release && \
-    curl -fsSL https://download.docker.com/linux/debian/gpg | gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg && \
-    echo "deb [arch=amd64 signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/debian bullseye stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null && \
-    apt-get update && \
-    apt-get install -y docker-ce-cli && \
-    apt-get clean && \
-    rm -rf /var/lib/apt/lists/*
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
 
 # Install dependencies only when needed
 FROM base AS deps
