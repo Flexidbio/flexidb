@@ -1,0 +1,35 @@
+# /etc/traefik/dynamic/config.yml
+http:
+  middlewares:
+    secureHeaders:
+      headers:
+        sslRedirect: true
+        forceSTSHeader: true
+        stsIncludeSubdomains: true
+        stsPreload: true
+        stsSeconds: 31536000
+        customFrameOptionsValue: "SAMEORIGIN"
+        contentTypeNosniff: true
+        browserXssFilter: true
+        referrerPolicy: "strict-origin-when-cross-origin"
+        permissionsPolicy: "camera=(), microphone=(), geolocation=(), payment=()"
+
+  routers:
+    flexidb-secure:
+      entryPoints:
+        - websecure
+      service: flexidb
+      tls: {}
+      rule: "HostRegexp(`{host:.+}`)"
+    
+    flexidb-insecure:
+      entryPoints:
+        - web
+      service: flexidb
+      rule: "HostRegexp(`{host:.+}`)"
+
+  services:
+    flexidb:
+      loadBalancer:
+        servers:
+          - url: "http://app:3000"

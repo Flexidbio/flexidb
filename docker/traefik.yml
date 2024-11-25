@@ -1,6 +1,22 @@
+# /etc/traefik/traefik.yml
+global:
+  checkNewVersion: true
+  sendAnonymousUsage: false
+
 api:
   dashboard: true
+  insecure: false
 
+providers:
+  docker:
+    endpoint: "unix:///var/run/docker.sock"
+    exposedByDefault: false
+    watch: true
+  file:
+    directory: "/etc/traefik/dynamic"
+    watch: true
+
+# Entry Points configuration
 entryPoints:
   web:
     address: ":80"
@@ -11,19 +27,20 @@ entryPoints:
           scheme: https
   websecure:
     address: ":443"
+    http:
+      middlewares:
+        - secureHeaders@file
+      tls:
+        certResolver: letsencrypt
 
-providers:
-  docker:
-    endpoint: "unix:///var/run/docker.sock"
-    exposedByDefault: false
-  file:
-    directory: /etc/traefik/dynamic
-    watch: true
+pilot:
+  dashboard: false
 
+# Certificate resolvers configuration
 certificatesResolvers:
   letsencrypt:
     acme:
-      email: admin@flexib.site
-      storage: /etc/traefik/acme/acme.json
+      email: "admin@example.com"
+      storage: "/etc/traefik/acme/acme.json"
       httpChallenge:
         entryPoint: web
