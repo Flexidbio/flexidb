@@ -22,8 +22,8 @@ export function Sidebar({ className }: SidebarProps) {
     {
       label: "Databases",
       icon: Database,
-      href: "/",
-      active: pathname === "/"
+      href: "/dashboard",
+      active: pathname === "/dashboard"
     },
     {
       label: "Settings",
