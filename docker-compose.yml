@@ -24,28 +24,22 @@ services:
       target: runner
     container_name: flexidb_app
     restart: always
+    ports:
+      - "3000:3000"  # Expose Next.js directly on port 3000
     env_file: .env
     depends_on:
       db:
         condition: service_healthy
     networks:
       - flexidb_network
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.app.rule=PathPrefix(`/`)"
-      - "traefik.http.routers.app.entrypoints=web,websecure"
-      - "traefik.http.services.app.loadbalancer.server.port=3000"
-      - "traefik.http.routers.app-secure.rule=PathPrefix(`/`)"
-      - "traefik.http.routers.app-secure.entrypoints=websecure"
-      - "traefik.http.routers.app-secure.tls=true"
+    # Remove Traefik labels since we're accessing Next.js directly
 
   traefik:
     image: traefik:v2.10
     container_name: flexidb_traefik
     restart: always
     ports:
-      - "80:80"
-      - "443:443"
+      - "80:80"  # Only expose HTTP port
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - /etc/traefik:/etc/traefik

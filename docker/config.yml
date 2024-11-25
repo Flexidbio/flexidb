@@ -1,15 +1,7 @@
 http:
-  middlewares:
-    redirect:
-      redirectScheme:
-        scheme: https
-        permanent: true
-
   routers:
-    redirect-router:
-      entryPoints:
+    dashboard:
+      rule: PathPrefix(`/api`, `/dashboard`)
+      service: api@internal
+      entrypoints:
         - web
-      middlewares:
-        - redirect
-      rule: PathPrefix(`/`)
-      service: app

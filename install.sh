@@ -120,44 +120,24 @@ setup_traefik() {
   echo -e "${YELLOW}Setting up Traefik configuration...${NC}"
   
   # Create required directories
-  mkdir -p /etc/traefik/dynamic
-  mkdir -p /etc/traefik/acme
+  sudo mkdir -p /etc/traefik/dynamic
+  sudo mkdir -p /etc/traefik/acme
   
   # Create and set permissions for acme.json
-  touch /etc/traefik/acme/acme.json
-  chmod 600 /etc/traefik/acme/acme.json
-  
-  # Check if configuration files exist in the docker directory
-  if [ ! -f "${INSTALL_DIR}/docker/traefik.yml" ] || [ ! -f "${INSTALL_DIR}/docker/config.yml" ]; then
-    echo -e "${RED}Traefik configuration files not found in ${INSTALL_DIR}/docker/${NC}"
-    echo -e "${YELLOW}Expected files:${NC}"
-    echo -e "  - ${INSTALL_DIR}/docker/traefik.yml"
-    echo -e "  - ${INSTALL_DIR}/docker/config.yml"
-    exit 1
-  fi
+  sudo touch /etc/traefik/acme/acme.json
+  sudo chmod 600 /etc/traefik/acme/acme.json
   
   # Copy configuration files
-  cp "${INSTALL_DIR}/docker/traefik.yml" /etc/traefik/traefik.yml
-  cp "${INSTALL_DIR}/docker/config.yml" /etc/traefik/dynamic/config.yml
+  sudo cp "${INSTALL_DIR}/docker/traefik.yml" /etc/traefik/
+  sudo cp "${INSTALL_DIR}/docker/config.yml" /etc/traefik/dynamic/
   
   # Set proper permissions
-  chmod 644 /etc/traefik/traefik.yml
-  chmod 644 /etc/traefik/dynamic/config.yml
-  
-  # Update ACME email in traefik.yml
-  ACME_EMAIL=$(grep ACME_EMAIL "${INSTALL_DIR}/.env" | cut -d '=' -f2)
-  if [ ! -z "$ACME_EMAIL" ]; then
-    sed -i "s/ACME_EMAIL_PLACEHOLDER/${ACME_EMAIL}/" /etc/traefik/traefik.yml
-  else
-    echo -e "${YELLOW}Warning: ACME_EMAIL not found in .env file${NC}"
-  fi
+  sudo chmod 644 /etc/traefik/traefik.yml
+  sudo chmod 644 /etc/traefik/dynamic/config.yml
   
   # Verify files exist and contain content
   if [ -s "/etc/traefik/traefik.yml" ] && [ -s "/etc/traefik/dynamic/config.yml" ]; then
     echo -e "${GREEN}Traefik configuration setup complete${NC}"
-    echo -e "${GREEN}Configuration files copied from:${NC}"
-    echo -e "  - ${INSTALL_DIR}/docker/traefik.yml -> /etc/traefik/traefik.yml"
-    echo -e "  - ${INSTALL_DIR}/docker/config.yml -> /etc/traefik/dynamic/config.yml"
   else
     echo -e "${RED}Failed to setup Traefik configuration${NC}"
     exit 1
