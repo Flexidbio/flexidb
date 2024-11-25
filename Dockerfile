@@ -15,8 +15,8 @@ RUN apt-get update && apt-get install -y \
 FROM base AS deps
 COPY package.json bun.lockb ./
 
-# Copy env file for build
-COPY .env .env
+# Create minimal .env for build
+RUN echo "DATABASE_URL=postgresql://postgres:postgres@db:5432/flexidb" > .env
 
 # Install dependencies without running postinstall
 RUN bun install --no-postinstall
