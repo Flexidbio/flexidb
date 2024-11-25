@@ -22,14 +22,17 @@ RUN sed -i '/node-pty/d' package.json && \
     sed -i '/bufferutil/d' package.json && \
     sed -i '/utf-8-validate/d' package.json
 
-RUN bun install
+# Install dependencies without running postinstall
+RUN bun install --no-postinstall
+
+# Generate Prisma client separately
+RUN bunx prisma generate
 
 # Builder
 FROM base AS builder
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
-RUN bunx prisma generate
 RUN bun run build
 
 # Runner
@@ -38,8 +41,6 @@ WORKDIR /app
 
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
-ENV PORT=3000
-ENV HOSTNAME="0.0.0.0"
 
 # Copy necessary files
 COPY --from=builder /app/public ./public
@@ -48,7 +49,6 @@ COPY --from=builder /app/next.config.js ./next.config.js
 COPY --from=builder /app/.next ./.next
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/prisma ./prisma
-COPY --from=builder /app/.env ./.env
 
 # Create non-root user
 RUN addgroup --system --gid 1001 nodejs
@@ -58,5 +58,4 @@ USER nextjs
 
 EXPOSE 3000
 
-# Use the Next.js start command directly from node_modules
 CMD ["bun", "run", "start"]

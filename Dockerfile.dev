@@ -22,14 +22,14 @@ RUN sed -i '/node-pty/d' package.json && \
     sed -i '/bufferutil/d' package.json && \
     sed -i '/utf-8-validate/d' package.json
 
-# Install dependencies
-RUN bun install
+# Install dependencies without running postinstall
+RUN bun install --no-postinstall
+
+# Generate Prisma client separately
+RUN bunx prisma generate
 
 # Copy the rest of the application
 COPY . .
-
-# Generate Prisma client
-RUN bunx prisma generate
 
 EXPOSE 3000
 
