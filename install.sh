@@ -7,8 +7,8 @@ RED='\033[0;31m'
 YELLOW='\033[1;33m'
 NC='\033[0m'
 
-# Working directory
-INSTALL_DIR="/opt/flexidb"
+# Working directory - use current user's home directory
+INSTALL_DIR="$HOME/flexidb"
 
 # Print logo
 cat << "EOF"
@@ -118,24 +118,23 @@ setup_traefik() {
 setup_repository() {
   echo -e "${YELLOW}Setting up FlexiDB repository...${NC}"
   
-  # Remove directory if it exists but is not a git repo
-  if [ -d "$INSTALL_DIR" ] && [ ! -d "$INSTALL_DIR/.git" ]; then
-    echo -e "${YELLOW}Removing existing non-git directory...${NC}"
+  # Check if directory exists
+  if [ -d "$INSTALL_DIR" ]; then
+    echo -e "${YELLOW}Removing existing directory...${NC}"
     rm -rf "$INSTALL_DIR"
   fi
   
-  # Clone or update repository
-  if [ -d "$INSTALL_DIR/.git" ]; then
-    echo -e "${YELLOW}Updating existing repository...${NC}"
-    cd "$INSTALL_DIR"
-    git pull origin main
-  else
-    echo -e "${YELLOW}Cloning repository...${NC}"
-    git clone https://github.com/Flexidbio/flexidb.git "$INSTALL_DIR"
-    cd "$INSTALL_DIR"
-  fi
+  # Clone repository
+  echo -e "${YELLOW}Cloning repository...${NC}"
+  git clone https://github.com/Flexidbio/flexidb.git "$INSTALL_DIR"
   
-  echo -e "${GREEN}Repository setup complete${NC}"
+  if [ $? -eq 0 ]; then
+    echo -e "${GREEN}Repository cloned successfully${NC}"
+    cd "$INSTALL_DIR"
+  else
+    echo -e "${RED}Failed to clone repository${NC}"
+    exit 1
+  fi
 }
 
 # Function to start services
