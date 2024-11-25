@@ -23,10 +23,13 @@ export const {auth,signIn,signOut,handlers} = NextAuth({
     strategy: "jwt",
     maxAge: 30 * 24 * 60 * 60, // 30 days
   },
-  jwt: {
-    maxAge: 30 * 24 * 60 * 60, // 30 days
+  callbacks: {
+    async redirect({ url, baseUrl }) {
+      // Allow redirects to IP addresses
+      return url.startsWith(baseUrl) ? url : baseUrl;
+    },
   },
-  secret: process.env.NEXTAUTH_SECRET, // Make sure this is set in .env
+  secret: process.env.NEXTAUTH_SECRET,
   pages: {
     signIn: "/auth/login",
     error: "/auth/error",

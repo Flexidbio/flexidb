@@ -55,9 +55,10 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
     environment:
       - DATABASE_URL=${DATABASE_URL}
-      - NEXTAUTH_URL=${NEXTAUTH_URL:-http://localhost:3000}
+      - NEXTAUTH_URL=http://37.27.208.196:3000
+      - NEXTAUTH_URL_INTERNAL=http://37.27.208.196:3000
+      - NEXT_PUBLIC_APP_URL=http://37.27.208.196:3000
       - NEXTAUTH_SECRET=${NEXTAUTH_SECRET}
-      - NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL:-http://localhost:3000}
       - POSTGRES_USER=${POSTGRES_USER:-postgres}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-postgres}
       - POSTGRES_DB=${POSTGRES_DB:-flexidb}
