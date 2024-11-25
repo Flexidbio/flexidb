@@ -117,19 +117,52 @@ verify_docker() {
 
 # Function to setup Traefik directories
 setup_traefik() {
-  echo -e "${YELLOW}Setting up Traefik directories...${NC}"
+  echo -e "${YELLOW}Setting up Traefik configuration...${NC}"
   
+  # Create required directories
   mkdir -p /etc/traefik/dynamic
   mkdir -p /etc/traefik/acme
   
+  # Create and set permissions for acme.json
   touch /etc/traefik/acme/acme.json
   chmod 600 /etc/traefik/acme/acme.json
   
-  cp "${INSTALL_DIR}/docker/traefik.yml" /etc/traefik/traefik.yml
+  # Check if configuration files exist in the docker directory
+  if [ ! -f "${INSTALL_DIR}/docker/traefik.yml" ] || [ ! -f "${INSTALL_DIR}/docker/config.yml" ]; then
+    echo -e "${RED}Traefik configuration files not found in ${INSTALL_DIR}/docker/${NC}"
+    echo -e "${YELLOW}Expected files:${NC}"
+    echo -e "  - ${INSTALL_DIR}/docker/traefik.yml"
+    echo -e "  - ${INSTALL_DIR}/docker/config.yml"
+    exit 1
+  fi
   
-  echo -e "${GREEN}Traefik directories setup complete${NC}"
+  # Copy configuration files
+  cp "${INSTALL_DIR}/docker/traefik.yml" /etc/traefik/traefik.yml
+  cp "${INSTALL_DIR}/docker/config.yml" /etc/traefik/dynamic/config.yml
+  
+  # Set proper permissions
+  chmod 644 /etc/traefik/traefik.yml
+  chmod 644 /etc/traefik/dynamic/config.yml
+  
+  # Update ACME email in traefik.yml
+  ACME_EMAIL=$(grep ACME_EMAIL "${INSTALL_DIR}/.env" | cut -d '=' -f2)
+  if [ ! -z "$ACME_EMAIL" ]; then
+    sed -i "s/ACME_EMAIL_PLACEHOLDER/${ACME_EMAIL}/" /etc/traefik/traefik.yml
+  else
+    echo -e "${YELLOW}Warning: ACME_EMAIL not found in .env file${NC}"
+  fi
+  
+  # Verify files exist and contain content
+  if [ -s "/etc/traefik/traefik.yml" ] && [ -s "/etc/traefik/dynamic/config.yml" ]; then
+    echo -e "${GREEN}Traefik configuration setup complete${NC}"
+    echo -e "${GREEN}Configuration files copied from:${NC}"
+    echo -e "  - ${INSTALL_DIR}/docker/traefik.yml -> /etc/traefik/traefik.yml"
+    echo -e "  - ${INSTALL_DIR}/docker/config.yml -> /etc/traefik/dynamic/config.yml"
+  else
+    echo -e "${RED}Failed to setup Traefik configuration${NC}"
+    exit 1
+  fi
 }
-
 # Function to clone or update repository
 setup_repository() {
   echo -e "${YELLOW}Setting up FlexiDB repository...${NC}"
@@ -205,15 +238,15 @@ main() {
   
   # Setup Traefik
   setup_traefik
-  
+  SERVER_IP=$(get_server_ip)
   # Start services
   start_services
   
   # Wait for services to be ready
   wait_for_services
   
-  echo -e "\n${GREEN}✨ FlexiDB installation completed!${NC}"
+  echo -e "\n${GREEN}✨ FlexiDB installation completed!${NC} Access your server at http://${SERVER_IP}:3000"
 }
 
-# Run main installation
+# Run main installationd
 main

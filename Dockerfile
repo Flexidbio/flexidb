@@ -19,7 +19,7 @@ COPY package.json bun.lockb ./
 RUN echo "DATABASE_URL=postgresql://postgres:postgres@db:5432/flexidb" > .env
 
 # Install dependencies without running postinstall
-RUN bun install --no-postinstall
+RUN bun install
 
 # Copy Prisma files and generate client
 COPY prisma ./prisma/
@@ -56,4 +56,4 @@ USER nextjs
 
 EXPOSE 3000
 
-CMD ["bun", "run", "start"]
+CMD ["node", ".next/standalone/server.js"]
