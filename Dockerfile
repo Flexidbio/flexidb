@@ -14,24 +14,20 @@ RUN apt-get update && apt-get install -y \
 # Dependencies
 FROM base AS deps
 COPY package.json bun.lockb ./
-COPY prisma ./prisma
-
-# Remove native dependencies that require compilation
-RUN sed -i '/node-pty/d' package.json && \
-    sed -i '/ssh2/d' package.json && \
-    sed -i '/bufferutil/d' package.json && \
-    sed -i '/utf-8-validate/d' package.json
 
 # Install dependencies without running postinstall
 RUN bun install --no-postinstall
 
-# Generate Prisma client separately
+# Copy Prisma files and generate client
+COPY prisma/schema.prisma ./prisma/
+RUN bunx prisma validate
 RUN bunx prisma generate
 
 # Builder
 FROM base AS builder
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
+COPY --from=deps /app/node_modules/.prisma ./node_modules/.prisma
 COPY . .
 RUN bun run build
 
