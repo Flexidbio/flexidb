@@ -82,15 +82,17 @@ verify_docker() {
   echo -e "${YELLOW}Checking Docker installation...${NC}"
   if ! command -v docker &> /dev/null; then
     echo -e "${YELLOW}Docker not found. Installing Docker...${NC}"
-    curl -fsSL https://get.docker.com -o get-docker.sh
-    sh get-docker.sh
+    sudo curl -fsSL https://get.docker.com -o get-docker.sh
+    sudo sh get-docker.sh
     rm get-docker.sh
   fi
 
   if ! docker info &> /dev/null; then
     echo -e "${YELLOW}Starting Docker service...${NC}"
-    systemctl start docker
-    systemctl enable docker
+    sudo systemctl start docker
+    sudo systemctl enable docker
+    # Add current user to docker group
+    sudo usermod -aG docker $USER
   fi
   
   echo -e "${GREEN}Docker is ready${NC}"
@@ -100,16 +102,16 @@ verify_docker() {
 setup_traefik() {
   echo -e "${YELLOW}Setting up Traefik directories...${NC}"
   
-  # Create directories
-  mkdir -p /etc/traefik/dynamic
-  mkdir -p /etc/traefik/acme
+  # Create directories with sudo
+  sudo mkdir -p /etc/traefik/dynamic
+  sudo mkdir -p /etc/traefik/acme
   
   # Create and set permissions for ACME storage
-  touch /etc/traefik/acme/acme.json
-  chmod 600 /etc/traefik/acme/acme.json
+  sudo touch /etc/traefik/acme/acme.json
+  sudo chmod 600 /etc/traefik/acme/acme.json
   
   # Copy Traefik configuration
-  cp "${INSTALL_DIR}/docker/traefik.yml" /etc/traefik/traefik.yml
+  sudo cp "${INSTALL_DIR}/docker/traefik.yml" /etc/traefik/traefik.yml
   
   echo -e "${GREEN}Traefik directories setup complete${NC}"
 }
