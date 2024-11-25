@@ -1,8 +1,8 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   output: 'standalone',
-  webpack: (config: { externals: any[]; }, { isServer }: any) => {
-    if (isServer) {
+  webpack: (config) => {
+    if (config.isServer) {
       config.externals = [...config.externals,
         'bufferutil',
         'utf-8-validate',
