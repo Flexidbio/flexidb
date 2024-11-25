@@ -1,14 +1,24 @@
 #!/bin/bash
 set -e
 
+# Check if script is run as root
+if [ "$EUID" -ne 0 ]; then 
+  echo "Please run as root (use sudo)"
+  exit 1
+fi
+
+# Get the actual user who ran sudo
+ACTUAL_USER=${SUDO_USER:-$USER}
+ACTUAL_HOME=$(eval echo ~${ACTUAL_USER})
+
 # Colors for output
 GREEN='\033[0;32m'
 RED='\033[0;31m'
 YELLOW='\033[1;33m'
 NC='\033[0m'
 
-# Working directory - use current user's home directory
-INSTALL_DIR="$HOME/flexidb"
+# Working directory - use actual user's home directory
+INSTALL_DIR="${ACTUAL_HOME}/flexidb"
 
 # Print logo
 cat << "EOF"
@@ -102,16 +112,13 @@ verify_docker() {
 setup_traefik() {
   echo -e "${YELLOW}Setting up Traefik directories...${NC}"
   
-  # Create directories with sudo
-  sudo mkdir -p /etc/traefik/dynamic
-  sudo mkdir -p /etc/traefik/acme
+  mkdir -p /etc/traefik/dynamic
+  mkdir -p /etc/traefik/acme
   
-  # Create and set permissions for ACME storage
-  sudo touch /etc/traefik/acme/acme.json
-  sudo chmod 600 /etc/traefik/acme/acme.json
+  touch /etc/traefik/acme/acme.json
+  chmod 600 /etc/traefik/acme/acme.json
   
-  # Copy Traefik configuration
-  sudo cp "${INSTALL_DIR}/docker/traefik.yml" /etc/traefik/traefik.yml
+  cp "${INSTALL_DIR}/docker/traefik.yml" /etc/traefik/traefik.yml
   
   echo -e "${GREEN}Traefik directories setup complete${NC}"
 }
@@ -126,9 +133,9 @@ setup_repository() {
     rm -rf "$INSTALL_DIR"
   fi
   
-  # Clone repository
+  # Clone repository as the actual user
   echo -e "${YELLOW}Cloning repository...${NC}"
-  git clone https://github.com/Flexidbio/flexidb.git "$INSTALL_DIR"
+  sudo -u ${ACTUAL_USER} git clone https://github.com/Flexidbio/flexidb.git "$INSTALL_DIR"
   
   if [ $? -eq 0 ]; then
     echo -e "${GREEN}Repository cloned successfully${NC}"
