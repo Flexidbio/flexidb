@@ -1,9 +1,13 @@
 FROM oven/bun:1 AS base
 WORKDIR /app
 
-# Install system dependencies
+# Install system dependencies including Python
 RUN apt-get update && apt-get install -y \
     build-essential \
+    python3 \
+    python3-pip \
+    make \
+    g++ \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
@@ -11,7 +15,13 @@ RUN apt-get update && apt-get install -y \
 FROM base AS deps
 COPY package.json bun.lockb ./
 COPY prisma ./prisma
-COPY .env.example .env
+
+# Remove native dependencies that require compilation
+RUN sed -i '/node-pty/d' package.json && \
+    sed -i '/ssh2/d' package.json && \
+    sed -i '/bufferutil/d' package.json && \
+    sed -i '/utf-8-validate/d' package.json
+
 RUN bun install
 
 # Builder
