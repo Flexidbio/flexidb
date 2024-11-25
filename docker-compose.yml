@@ -1,16 +1,19 @@
+version: '3.8'
+
 services:
   db:
     image: postgres:16-alpine
     container_name: flexidb_postgres
     restart: always
+    env_file: .env
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: flexidb
+      - POSTGRES_USER=${POSTGRES_USER:-postgres}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-postgres}
+      - POSTGRES_DB=${POSTGRES_DB:-flexidb}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d flexidb"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-flexidb}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -24,25 +27,20 @@ services:
       target: runner
     container_name: flexidb_app
     restart: always
-    ports:
-      - "3000:3000"  # Expose Next.js directly on port 3000
     env_file: .env
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+      - NEXTAUTH_URL=${NEXTAUTH_URL:-http://localhost:3000}
+      - NEXTAUTH_SECRET=${NEXTAUTH_SECRET}
+      - NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL:-http://localhost:3000}
+      - POSTGRES_USER=${POSTGRES_USER:-postgres}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-postgres}
+      - POSTGRES_DB=${POSTGRES_DB:-flexidb}
+    ports:
+      - "3000:3000"
     depends_on:
       db:
         condition: service_healthy
-    networks:
-      - flexidb_network
-    # Remove Traefik labels since we're accessing Next.js directly
-
-  traefik:
-    image: traefik:v2.10
-    container_name: flexidb_traefik
-    restart: always
-    ports:
-      - "80:80"  # Only expose HTTP port
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-      - /etc/traefik:/etc/traefik
     networks:
       - flexidb_network
 
