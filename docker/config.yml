@@ -1,30 +1,15 @@
 http:
   middlewares:
-    security:
-      headers:
-        browserXssFilter: true
-        contentTypeNosniff: true
-        frameDeny: true
-        sslRedirect: true
-        stsIncludeSubdomains: true
-        stsPreload: true
-        stsSeconds: 31536000
-        customFrameOptionsValue: "SAMEORIGIN"
+    redirect:
+      redirectScheme:
+        scheme: https
+        permanent: true
 
   routers:
-    app:
+    redirect-router:
       entryPoints:
         - web
-        - websecure
       middlewares:
-        - security
-      service: app-service
-      rule: "PathPrefix(`/`)"
-      tls:
-        certResolver: letsencrypt
-
-  services:
-    app-service:
-      loadBalancer:
-        servers:
-          - url: "http://app:3000"
+        - redirect
+      rule: PathPrefix(`/`)
+      service: app

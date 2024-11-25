@@ -32,7 +32,12 @@ services:
       - flexidb_network
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.app.service=app-service"
+      - "traefik.http.routers.app.rule=PathPrefix(`/`)"
+      - "traefik.http.routers.app.entrypoints=web,websecure"
+      - "traefik.http.services.app.loadbalancer.server.port=3000"
+      - "traefik.http.routers.app-secure.rule=PathPrefix(`/`)"
+      - "traefik.http.routers.app-secure.entrypoints=websecure"
+      - "traefik.http.routers.app-secure.tls=true"
 
   traefik:
     image: traefik:v2.10

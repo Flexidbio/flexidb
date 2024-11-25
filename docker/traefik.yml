@@ -1,20 +1,12 @@
-global:
-  sendAnonymousUsage: false
-  checkNewVersion: true
-
 api:
   dashboard: true
   insecure: false
-
-log:
-  level: INFO
 
 providers:
   docker:
     endpoint: "unix:///var/run/docker.sock"
     exposedByDefault: false
     watch: true
-    network: flexidb_network
   file:
     directory: "/etc/traefik/dynamic"
     watch: true
@@ -25,10 +17,7 @@ entryPoints:
   websecure:
     address: ":443"
 
-certificatesResolvers:
-  letsencrypt:
-    acme:
-      email: "ACME_EMAIL_PLACEHOLDER"
-      storage: "/etc/traefik/acme/acme.json"
-      httpChallenge:
-        entryPoint: web
+log:
+  level: "INFO"
+
+accessLog: {}
