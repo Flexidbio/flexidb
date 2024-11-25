@@ -26,6 +26,15 @@ generate_password() {
   openssl rand -base64 24 | tr -d '/+=' | cut -c1-32
 }
 
+# Function to get server IP
+get_server_ip() {
+  SERVER_IP=$(ip -4 addr show | grep -oP '(?<=inet\s)\d+(\.\d+){3}' | grep -v '^127\.' | head -n 1)
+  if [ -z "$SERVER_IP" ]; then
+    SERVER_IP=$(hostname -I | awk '{print $1}')
+  fi
+  echo "$SERVER_IP"
+}
+
 # Function to create .env file with required variables
 create_env_file() {
   echo -e "${YELLOW}Creating new .env file...${NC}"
@@ -34,6 +43,13 @@ create_env_file() {
   DB_PASSWORD=$(generate_password)
   AUTH_SECRET=$(generate_password)
   SERVER_IP=$(get_server_ip)
+  
+  # Ensure directory exists
+  mkdir -p "${INSTALL_DIR}"
+  
+  # Create .env file with proper permissions
+  touch "${INSTALL_DIR}/.env"
+  chmod 600 "${INSTALL_DIR}/.env"
   
   cat > "${INSTALL_DIR}/.env" << EOF
 # Database Configuration
@@ -52,7 +68,9 @@ COMPOSE_PROJECT_NAME=flexidb
 DOMAIN=${SERVER_IP}
 EOF
 
-  echo -e "${GREEN}Created new .env file with secure configuration${NC}"
+  echo -e "${GREEN}Created new .env file at ${INSTALL_DIR}/.env${NC}"
+  # Debug output
+  ls -la "${INSTALL_DIR}/.env"
 }
 
 # Function to verify Docker installation
@@ -73,16 +91,7 @@ verify_docker() {
   
   echo -e "${GREEN}Docker is ready${NC}"
 }
-# Function to get server IP
-get_server_ip() {
-  # Try to get IPv4 address, preferring external interfaces
-  SERVER_IP=$(ip -4 addr show | grep -oP '(?<=inet\s)\d+(\.\d+){3}' | grep -v '^127\.' | head -n 1)
-  if [ -z "$SERVER_IP" ]; then
-    # Fallback to hostname -I and take first IP
-    SERVER_IP=$(hostname -I | awk '{print $1}')
-  fi
-  echo "$SERVER_IP"
-}
+
 # Function to setup Traefik directories
 setup_traefik() {
   echo -e "${YELLOW}Setting up Traefik directories...${NC}"
@@ -150,6 +159,14 @@ main() {
   # Create new .env file
   create_env_file
   
+  # Debug: Check if .env was created
+  if [ -f "${INSTALL_DIR}/.env" ]; then
+    echo -e "${GREEN}.env file exists${NC}"
+  else
+    echo -e "${RED}.env file was not created!${NC}"
+    exit 1
+  fi
+  
   # Setup Traefik
   setup_traefik
   
@@ -159,15 +176,7 @@ main() {
   # Wait for services to be ready
   wait_for_services
   
-  # Show completion message
   echo -e "\n${GREEN}✨ FlexiDB installation completed!${NC}"
-  echo -e "\nAccess the application at: ${YELLOW}http://localhost:3000${NC}"
-  echo -e "\nDatabase configuration:"
-  echo -e "  Host: ${YELLOW}localhost${NC}"
-  echo -e "  Port: ${YELLOW}5432${NC}"
-  echo -e "  Database: ${YELLOW}flexidb${NC}"
-  echo -e "  Username: ${YELLOW}postgres${NC}"
-  echo -e "  Password: ${YELLOW}postgres${NC}\n"
 }
 
 # Run main installation
