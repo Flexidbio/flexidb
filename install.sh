@@ -68,6 +68,9 @@ create_env_file() {
   touch "${INSTALL_DIR}/.env"
   chmod 600 "${INSTALL_DIR}/.env"
   
+  # Generate a secure secret for NextAuth
+  NEXTAUTH_SECRET=$(openssl rand -base64 32)
+  
 cat > "${INSTALL_DIR}/.env" << EOF
 # Database Configuration
 POSTGRES_USER=postgres
@@ -76,7 +79,7 @@ POSTGRES_DB=flexidb
 DATABASE_URL=postgresql://postgres:${DB_PASSWORD}@db:5432/flexidb
 
 # Auth Configuration
-NEXTAUTH_SECRET=${AUTH_SECRET}
+NEXTAUTH_SECRET=${NEXTAUTH_SECRET}
 NEXTAUTH_URL=http://${SERVER_IP}:3000
 NEXTAUTH_URL_INTERNAL=http://${SERVER_IP}:3000
 NEXT_PUBLIC_APP_URL=http://${SERVER_IP}:3000

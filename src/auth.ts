@@ -3,10 +3,8 @@ import CredentialsProvider from "next-auth/providers/credentials";
 import { PrismaAdapter } from "@auth/prisma-adapter";
 import { prisma } from "@/lib/db/prisma";
 import bcrypt from "bcryptjs";
-import { AdapterUser } from "next-auth/adapters";
 
-
-export const {auth,signIn,signOut,handlers}  =NextAuth({
+export const {auth,signIn,signOut,handlers} = NextAuth({
   trustHost: true,
   adapter: PrismaAdapter(prisma) as any,
   useSecureCookies: false,
@@ -21,7 +19,14 @@ export const {auth,signIn,signOut,handlers}  =NextAuth({
       }
     }
   },
-  session: { strategy: "jwt" },
+  session: { 
+    strategy: "jwt",
+    maxAge: 30 * 24 * 60 * 60, // 30 days
+  },
+  jwt: {
+    maxAge: 30 * 24 * 60 * 60, // 30 days
+  },
+  secret: process.env.NEXTAUTH_SECRET, // Make sure this is set in .env
   pages: {
     signIn: "/auth/login",
     error: "/auth/error",
@@ -57,22 +62,7 @@ export const {auth,signIn,signOut,handlers}  =NextAuth({
         };
       },
     }),
-  ],
-  callbacks: {
-    async jwt({ token, user }) {
-      if (user) {
-        token.id = (user as AdapterUser & { id: string }).id;
-        token.isAdmin = (user as AdapterUser & { isAdmin: boolean }).isAdmin;
-      }
-      return token;
-    },
-    async session({ session, token }) {
-      session.user.id = token.id as string;
-      session.user.isAdmin = token.isAdmin as boolean;
-      return session;
-    },
-  },
-  debug: process.env.NODE_ENV === "development",
+  ]
 });
 
 
