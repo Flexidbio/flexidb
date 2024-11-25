@@ -7,6 +7,7 @@ import { AdapterUser } from "next-auth/adapters";
 
 
 export const {auth,signIn,signOut,handlers}  =NextAuth({
+  trustHost: false,
   adapter: PrismaAdapter(prisma) as any,
   session: { strategy: "jwt" },
   pages: {
