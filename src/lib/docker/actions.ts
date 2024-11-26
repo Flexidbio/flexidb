@@ -54,7 +54,7 @@ export async function createContainer(input: CreateContainerInput) {
       createdAt: new Date(),
       updatedAt: new Date(),
       userId: session.user.id,
-    });
+    })
 
     if (!dbContainer) {
       throw new Error("Failed to create database entry");

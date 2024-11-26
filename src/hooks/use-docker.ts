@@ -13,7 +13,7 @@ export function useCreateContainer() {
       return dockerActions.createContainer(input);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['containers'] });
+      queryClient.invalidateQueries({ queryKey: ['databases'] });
       toast({
         title: 'Success',
         description: 'Container created successfully',
