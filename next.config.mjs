@@ -2,21 +2,16 @@
 const nextConfig = {
   output: 'standalone',
   webpack: (config) => {
-    if (config.isServer) {
-      config.externals = [...config.externals,
-        'bufferutil',
-        'utf-8-validate',
-        'ssh2',
-        'node-pty'
-      ];
-    }
+    config.externals = [...(config.externals || []), {
+      'bcryptjs': 'bcryptjs',
+    }]
     return config;
   },
   typescript: {
-    ignoreBuildErrors: true, // Set to false in development
+    ignoreBuildErrors: true,
   },
   eslint: {
-    ignoreDuringBuilds: true, // Set to false in development
+    ignoreDuringBuilds: true,
   }
 }
 
