@@ -33,7 +33,7 @@ export async function getContainerById(id: string) {
 }
 
 export async function createContainer(container: DatabaseInstance) {
-  const { name, port, envVars, type, image, ...rest } = container;
+  const { name, port, envVars, type, image, userId, ...rest } = container;
   
   return await prisma.databaseInstance.create({ 
     data: {
@@ -42,6 +42,7 @@ export async function createContainer(container: DatabaseInstance) {
       type,
       image,
       envVars: envVars as Prisma.InputJsonValue,
+      userId,
       ...rest
     } 
   });
