@@ -26,7 +26,7 @@ export const {
       if (user) {
         return {
           ...token,
-          id: user.id || "",
+          id: user.id || '', // Ensure id is always a string
           isAdmin: user.isAdmin || false,
         };
       }

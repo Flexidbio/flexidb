@@ -6,7 +6,7 @@ import { auth } from "@/auth";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { createContainer as dbCreateContainer } from "@/lib/db/docker";
-import { PrismaClient } from "@prisma/client";
+import { DatabaseInstance, PrismaClient } from "@prisma/client";
 import { randomUUID } from "crypto";
 
 const dockerClient = DockerClient.getInstance();
@@ -25,22 +25,18 @@ export type CreateContainerInput = z.infer<typeof CreateContainerSchema>;
 
 export async function createContainer(input: CreateContainerInput) {
   const session = await auth();
-  if (!session?.user) {
-    throw new Error("Unauthorized");
+  if (!session?.user?.id) {
+    throw new Error("Unauthorized: User ID not found");
   }
 
   let dbContainer = null;
 
   try {
     const validated = CreateContainerSchema.parse(input);
-    
-    // Generate a unique ID for the container
     const containerId = randomUUID();
-    
-    // Create safe container name
     const safeName = `${validated.name.toLowerCase().replace(/[^a-z0-9-]/g, '-')}-${containerId}`;
 
-    // First create the database entry
+    // Create database entry with explicit userId
     dbContainer = await dbCreateContainer({
       id: containerId,
       name: validated.name,
@@ -49,12 +45,12 @@ export async function createContainer(input: CreateContainerInput) {
       port: validated.port,
       internalPort: validated.internalPort,
       status: "creating",
-      container_id:containerId,
+      container_id: containerId,
       envVars: validated.envVars || {},
       createdAt: new Date(),
       updatedAt: new Date(),
-      userId: session.user.id,
-    })
+      userId: session.user.id  // Ensure this is passed
+    } as DatabaseInstance)  // Type assertion to match DatabaseInstance
 
     if (!dbContainer) {
       throw new Error("Failed to create database entry");
@@ -117,7 +113,7 @@ export async function createContainer(input: CreateContainerInput) {
     }
 
     if (error instanceof Error) {
-      throw new Error(`Failed to create container: ${error.message}`);
+      throw new Error(`Failed to create container`);
     }
     
     throw new Error("Failed to create container");

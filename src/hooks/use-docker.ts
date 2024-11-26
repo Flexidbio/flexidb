@@ -4,25 +4,26 @@ import { CreateContainerInput } from '@/lib/docker/actions';
 import * as dockerActions from '@/lib/docker/actions';
 import { toast } from '@/hooks/use-toast';
 import * as cmdActions from '@/lib/net/actions';
+import { createDatabaseAction } from '@/lib/actions/database';
 
 export function useCreateContainer() {
   const queryClient = useQueryClient();
   
   return useMutation({
     mutationFn: async (input: CreateContainerInput) => {
-      return dockerActions.createContainer(input);
+      return createDatabaseAction(input);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['databases'] });
       toast({
         title: 'Success',
-        description: 'Container created successfully',
+        description: 'Database created successfully',
       });
     },
     onError: (error) => {
       toast({
         title: 'Error',
-        description: error.message,
+        description: error instanceof Error ? error.message : 'Failed to create database',
         variant: 'destructive',
       });
     },

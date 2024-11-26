@@ -9,21 +9,17 @@ import { CreateDatabaseDialog } from "@/components/database/create-database-dial
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { DatabaseInstance } from "@/lib/types";
 import { useRouter } from "next/navigation";
-import { getContainers } from "@/app/actions";
+import { getDatabasesAction } from "@/lib/actions/database";
 
-// Update the DatabaseInstance type to allow null for container_id
-type DatabaseInstanceWithNullableContainerId = Omit<DatabaseInstance, 'container_id'> & {
-  container_id: string | null;
-};
+
 
 export function DatabaseList() {
   const [createOpen, setCreateOpen] = useState(false);
   const router = useRouter();
-  const { data: containers, isLoading } = useQuery<DatabaseInstanceWithNullableContainerId[]>({
-    queryKey: ["containers"],
-    queryFn: getContainers as () => Promise<DatabaseInstance[]>
-  
-  });
+  const { data: databases, isLoading } = useQuery({
+    queryKey: ['databases'],
+    queryFn: getDatabasesAction
+  })
 
   if (isLoading) {
     return (
@@ -47,7 +43,7 @@ export function DatabaseList() {
 
         <ScrollArea className="h-[calc(100vh-200px)]">
           <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
-            {containers?.map((database) => (
+            {databases?.map((database) => (
               <DatabaseCard
                 key={database.id}
                 database={database}
