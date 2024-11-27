@@ -167,7 +167,7 @@ export default function CreateDatabasePage() {
           <CardTitle>Database Configuration</CardTitle>
           {error && (
             <div className="text-sm font-normal text-red-500 mt-1">
-              {error}
+              Connection to docker failed. Please try again.
             </div>
           )}
         </CardHeader>

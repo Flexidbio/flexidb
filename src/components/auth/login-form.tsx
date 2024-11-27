@@ -8,97 +8,94 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import Link from "next/link";
-import { loginUser } from "@/lib/api/mutations";
+import { signIn } from "next-auth/react";
 
 export function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const justRegistered = searchParams.get("registered");
+  const [error, setError] = useState<string | null>(null);
   const callbackUrl = searchParams.get("callbackUrl") || "/dashboard";
-  
-  const [data, setData] = useState({
-    email: "",
-    password: ""
-  });
 
-  const { mutate: login, isPending, error } = useMutation({
-    mutationFn: loginUser,
+  const { mutate: login, isPending } = useMutation({
+    mutationFn: async (data: { email: string; password: string }) => {
+      const result = await signIn("credentials", {
+        redirect: false,
+        email: data.email,
+        password: data.password,
+      });
+
+      if (result?.error) {
+        throw new Error("Invalid email or password");
+      }
+
+      return result;
+    },
     onSuccess: () => {
       router.push(callbackUrl);
       router.refresh();
     },
+    onError: (error: Error) => {
+      setError(error.message);
+    },
   });
 
-  const onSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    login(data);
+    const formData = new FormData(e.currentTarget);
+    
+    login({
+      email: formData.get("email") as string,
+      password: formData.get("password") as string,
+    });
   };
 
   return (
-    <div className="mx-auto flex w-full flex-col justify-center space-y-6 sm:w-[350px]">
-      <div className="flex flex-col space-y-2 text-center">
-        <h1 className="text-2xl font-semibold tracking-tight">Welcome back</h1>
-        <p className="text-sm text-muted-foreground">
-          Enter your credentials to sign in
+    <div className="space-y-6">
+      <div className="space-y-2 text-center">
+        <h1 className="text-3xl font-bold">Sign in</h1>
+        <p className="text-muted-foreground">
+          Enter your email below to sign in to your account
         </p>
       </div>
-
-      <form onSubmit={onSubmit} className="space-y-4">
-        {justRegistered && (
-          <Alert>
-            <AlertDescription>
-              Account created successfully. Please sign in.
-            </AlertDescription>
-          </Alert>
-        )}
-
-        {error && (
-          <Alert variant="destructive">
-            <AlertDescription>{error.message}</AlertDescription>
-          </Alert>
-        )}
-        
+      {error && (
+        <Alert variant="destructive">
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
+      <form onSubmit={handleSubmit} className="space-y-4">
         <div className="space-y-2">
           <Label htmlFor="email">Email</Label>
           <Input
             id="email"
+            name="email"
             type="email"
-            placeholder="name@example.com"
-            value={data.email}
-            onChange={(e) => setData({ ...data, email: e.target.value })}
+            placeholder="m@example.com"
             required
           />
         </div>
-        
         <div className="space-y-2">
-          <div className="flex items-center justify-between">
-            <Label htmlFor="password">Password</Label>
-            <Link
-              href="/auth/forgot-password"
-              className="text-sm text-primary hover:underline"
-            >
-              Forgot password?
-            </Link>
-          </div>
+          <Label htmlFor="password">Password</Label>
           <Input
             id="password"
+            name="password"
             type="password"
-            value={data.password}
-            onChange={(e) => setData({ ...data, password: e.target.value })}
             required
           />
         </div>
-
-        <Button type="submit" className="w-full" disabled={isPending}>
+        <Button
+          type="submit"
+          className="w-full"
+          disabled={isPending}
+        >
           {isPending ? "Signing in..." : "Sign in"}
         </Button>
-        <p className="text-center text-sm text-muted-foreground">
-          Don't have an account?{" "}
-          <Link href="/auth/signup" className="text-primary hover:underline">
-            Sign up
-          </Link>
-        </p>
       </form>
+      <div className="text-center text-sm">
+        Don't have an account?{" "}
+        <Link href="/auth/signup" className="underline">
+          Sign up
+        </Link>
+      </div>
     </div>
   );
 }
