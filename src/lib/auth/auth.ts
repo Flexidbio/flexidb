@@ -17,6 +17,7 @@ export const {
   signIn,
   signOut,
 } = NextAuth({
+  trustHost: true,  // Allow any host
   pages: {
     signIn: "/auth/login",
     error: "/auth/error",

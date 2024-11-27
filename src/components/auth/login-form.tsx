@@ -92,6 +92,12 @@ export function LoginForm() {
         <Button type="submit" className="w-full" disabled={isPending}>
           {isPending ? "Signing in..." : "Sign in"}
         </Button>
+        <p className="text-center text-sm text-muted-foreground">
+          Don't have an account?{" "}
+          <Link href="/auth/signup" className="text-primary hover:underline">
+            Sign up
+          </Link>
+        </p>
       </form>
     </div>
   );
