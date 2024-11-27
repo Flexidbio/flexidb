@@ -1,75 +1,123 @@
 "use client"
 
-import { useState } from "react"
-import { useToast } from "@/hooks/use-toast"
+import { useState, useEffect } from "react"
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import { getSettings, updateEmailSettings } from "@/lib/actions/settings"
+import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { JsonValue } from "@prisma/client/runtime/library"
+import { Eye, EyeOff } from "lucide-react"
+import { EmailProvider } from "@prisma/client"
 
 
-type EmailProvider = 'smtp' | 'resend'
+interface SmtpConfig {
+  host: string
+  port: number
+  username: string
+  password: string
+}
 
-interface EmailConfig {
-  provider: EmailProvider
-  host?: string
-  port?: number
-  username?: string
-  password?: string
-  apiKey?: string
-  from: string
+interface ResendConfig {
+  apiKey: string
+}
+
+interface Settings {
+  id: string
+  createdAt: Date
+  updatedAt: Date
+  domain: string | null
+  allowSignups: boolean
+  smtpConfig: JsonValue
+  resendConfig: JsonValue
+  emailProvider: EmailProvider
+  emailFrom: string
 }
 
 export function EmailSettings() {
-  const { toast } = useToast()
-  const [loading, setLoading] = useState(false)
-  const [provider, setProvider] = useState<EmailProvider>('smtp')
-  const [config, setConfig] = useState<EmailConfig>({
-    provider: 'smtp',
-    host: '',
-    port: 587,
-    username: '',
-    password: '',
-    apiKey: '',
-    from: ''
+  const queryClient = useQueryClient()
+  const [formData, setFormData] = useState<{
+    emailProvider: EmailProvider;
+    emailFrom: string;
+    smtpConfig: SmtpConfig;
+    resendConfig: ResendConfig;
+  }>({
+    emailProvider: EmailProvider.SMTP,
+    emailFrom: '',
+    smtpConfig: {
+      host: '',
+      port: 587,
+      username: '',
+      password: '',
+    },
+    resendConfig: {
+      apiKey: '',
+    }
+  })
+  const [showApiKey, setShowApiKey] = useState(false)
+  
+  const { data: settings } = useQuery<Settings, Error, Settings>({
+    queryKey: ['settings'],
+    queryFn: async () => {
+      const result = await getSettings();
+      if (!result) throw new Error('Settings not found');
+      return result as Settings;
+    },
   })
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setLoading(true)
-
-    try {
-      const response = await fetch('/api/settings/email', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          emailConfig: {
-            ...config,
-            provider,
-            // Only include relevant fields based on provider
-            ...(provider === 'smtp' 
-              ? { apiKey: undefined } 
-              : { host: undefined, port: undefined, username: undefined, password: undefined })
-          }
-        })
+  useEffect(() => {
+    if (settings) {
+      setFormData({
+        emailProvider: settings.emailProvider ,
+        emailFrom: settings.emailFrom || '',
+        smtpConfig: settings.smtpConfig ? JSON.parse(JSON.stringify(settings.smtpConfig)) as SmtpConfig : {
+          host: '',
+          port: 587,
+          username: '',
+          password: '',
+        },
+        resendConfig: settings.resendConfig ? JSON.parse(JSON.stringify(settings.resendConfig)) as ResendConfig : {
+          apiKey: '',
+        },
       })
-
-      if (!response.ok) {
-        throw new Error('Failed to save email settings')
-      }
-
-      toast({
-        title: "Success",
-        description: "Email settings saved successfully",
-      })
-    } catch (error) {
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: (error as Error).message || "Failed to save email settings",
-      })
-    } finally {
-      setLoading(false)
     }
+  }, [settings])
+
+  const handleInputChange = (path: string, value: string | number) => {
+    setFormData(prev => {
+      const newData = { ...prev }
+      const keys = path.split('.')
+      let current: any = newData
+      
+      for (let i = 0; i < keys.length - 1; i++) {
+        current = current[keys[i]]
+      }
+      current[keys[keys.length - 1]] = value
+      return newData
+    })
+  }
+
+  const { mutate: updateSettings, isPending } = useMutation({
+    mutationFn: updateEmailSettings,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['settings'] })
+      toast.success("Email settings updated")
+    },
+    onError: (error: Error) => {
+      toast.error(error.message)
+    }
+  })
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    const config = {
+      emailProvider: formData.emailProvider,
+      emailFrom: formData.emailFrom,
+      smtpConfig: formData.emailProvider === EmailProvider.SMTP ? formData.smtpConfig : undefined,
+      resendConfig: formData.emailProvider === EmailProvider.RESEND ? formData.resendConfig : undefined,
+    }
+    updateSettings(config)
   }
 
   return (
@@ -87,15 +135,15 @@ export function EmailSettings() {
           <div className="flex gap-4">
             <Button
               type="button"
-              variant={provider === 'smtp' ? 'default' : 'outline'}
-              onClick={() => setProvider('smtp')}
+              variant={formData.emailProvider === EmailProvider.SMTP ? 'default' : 'outline'}
+              onClick={() => setFormData(prev => ({ ...prev, emailProvider: EmailProvider.SMTP }))}
             >
               SMTP
             </Button>
             <Button
               type="button"
-              variant={provider === 'resend' ? 'default' : 'outline'}
-              onClick={() => setProvider('resend')}
+              variant={formData.emailProvider === EmailProvider.RESEND ? 'default' : 'outline'}
+              onClick={() => setFormData(prev => ({ ...prev, emailProvider: EmailProvider.RESEND }))}
             >
               Resend
             </Button>
@@ -103,26 +151,26 @@ export function EmailSettings() {
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="from">From Address</Label>
+          <Label htmlFor="emailFrom">From Address</Label>
           <Input
             className="max-w-xs"
-            id="from"
-            value={config.from}
-            onChange={(e) => setConfig({ ...config, from: e.target.value })}
+            id="emailFrom"
+            value={formData.emailFrom}
+            onChange={(e) => handleInputChange('emailFrom', e.target.value)}
             placeholder="noreply@example.com"
             required
           />
         </div>
 
-        {provider === 'smtp' ? (
+        {formData.emailProvider === EmailProvider.SMTP ? (
           <>
             <div className="space-y-2">
               <Label htmlFor="host">SMTP Host</Label>
               <Input
                 className="max-w-xs"
                 id="host"
-                value={config.host}
-                onChange={(e) => setConfig({ ...config, host: e.target.value })}
+                value={formData.smtpConfig.host}
+                onChange={(e) => handleInputChange('smtpConfig.host', e.target.value)}
                 placeholder="smtp.example.com"
                 required
               />
@@ -134,8 +182,8 @@ export function EmailSettings() {
                 className="max-w-xs"
                 id="port"
                 type="number"
-                value={config.port}
-                onChange={(e) => setConfig({ ...config, port: Number(e.target.value) })}
+                value={formData.smtpConfig.port}
+                onChange={(e) => handleInputChange('smtpConfig.port', Number(e.target.value))}
                 placeholder="587"
                 required
               />
@@ -146,8 +194,8 @@ export function EmailSettings() {
               <Input
                 className="max-w-xs"
                 id="username"
-                value={config.username}
-                onChange={(e) => setConfig({ ...config, username: e.target.value })}
+                value={formData.smtpConfig.username}
+                onChange={(e) => handleInputChange('smtpConfig.username', e.target.value)}
                 required
               />
             </div>
@@ -158,8 +206,8 @@ export function EmailSettings() {
                 className="max-w-xs"
                 id="password"
                 type="password"
-                value={config.password}
-                onChange={(e) => setConfig({ ...config, password: e.target.value })}
+                value={formData.smtpConfig.password}
+                onChange={(e) => handleInputChange('smtpConfig.password', e.target.value)}
                 required
               />
             </div>
@@ -167,19 +215,29 @@ export function EmailSettings() {
         ) : (
           <div className="space-y-2">
             <Label htmlFor="apiKey">Resend API Key</Label>
-            <Input
-              className="max-w-xs"
-              id="apiKey"
-              type="password"
-              value={config.apiKey}
-              onChange={(e) => setConfig({ ...config, apiKey: e.target.value })}
-              required
-            />
+            <div className="flex max-w-xs">
+              <Input
+                className="rounded-r-none"
+                id="apiKey"
+                type={showApiKey ? "text" : "password"}
+                value={formData.resendConfig.apiKey}
+                onChange={(e) => handleInputChange('resendConfig.apiKey', e.target.value)}
+                required
+              />
+              <Button
+                type="button"
+                variant="outline"
+                className="rounded-l-none border-l-0"
+                onClick={() => setShowApiKey(!showApiKey)}
+              >
+                {showApiKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </Button>
+            </div>
           </div>
         )}
 
-        <Button type="submit" disabled={loading}>
-          {loading ? "Saving..." : "Save Settings"}
+        <Button type="submit" disabled={isPending}>
+          {isPending ? "Saving..." : "Save Settings"}
         </Button>
       </form>
     </div>

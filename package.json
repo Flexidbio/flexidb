@@ -8,7 +8,7 @@
     "start": "next start",
     "lint": "next lint",
     "prisma:generate": "prisma generate",
-    "prisma:migrate": "prisma migrate",
+    "prisma:migrate": "prisma migrate dev",
     "prisma:studio": "prisma studio",
     "git:push": "git add . && git commit -m 'update' && git push",
     "create-admin": "yarn run scripts/create-admin.ts"

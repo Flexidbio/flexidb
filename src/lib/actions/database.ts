@@ -77,9 +77,26 @@ export async function getDatabasesAction() {
     throw new Error("Unauthorized")
   }
 
-  return await prisma.databaseInstance.findMany({
-    where: { userId: session.user.id }
-  })
+  try {
+    const databases = await prisma.databaseInstance.findMany({
+      where: { 
+        userId: session.user.id 
+      },
+      include: {
+        user: {
+          select: {
+            email: true,
+            name: true
+          }
+        }
+      }
+    })
+
+    return databases
+  } catch (error) {
+    console.error("Failed to fetch databases:", error)
+    throw new Error("Failed to fetch databases")
+  }
 }
 
 export async function deleteDatabaseAction(containerId: string) {

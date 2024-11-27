@@ -2,6 +2,7 @@
 import { Resend } from 'resend';
 import nodemailer from 'nodemailer';
 import { prisma } from '@/lib/db/prisma';
+import { EmailProvider } from '@prisma/client';
 
 interface EmailConfig {
   provider: 'smtp' | 'resend';
@@ -27,42 +28,60 @@ export class EmailService {
   }
 
   private async loadConfig() {
-    const settings = await prisma.settings.findUnique({
-      where: { id: 'email-settings' }
-    });
+    const settings = await prisma.settings.findFirst();
     
-    this.emailConfig = settings?.emailConfig as unknown as EmailConfig || null;
-  }
-
-  async sendEmail(to: string, subject: string, html: string) {
-    await this.loadConfig();
-    
-    if (!this.emailConfig) {
+    if (!settings?.emailProvider || !settings?.emailFrom) {
       throw new Error('Email configuration not found');
     }
 
-    if (this.emailConfig.provider === 'smtp') {
+    return {
+      provider: settings.emailProvider,
+      from: settings.emailFrom,
+      smtpConfig: settings.smtpConfig as {
+        host: string;
+        port: number;
+        username: string;
+        password: string;
+      },
+      resendConfig: settings.resendConfig as {
+        apiKey: string;
+      },
+    };
+  }
+
+  async sendEmail(to: string, subject: string, html: string) {
+    const config = await this.loadConfig();
+    
+    if (config.provider === EmailProvider.SMTP) {
+      if (!config.smtpConfig) {
+        throw new Error('SMTP configuration not found');
+      }
+
       const transporter = nodemailer.createTransport({
-        host: this.emailConfig.host,
-        port: this.emailConfig.port,
-        secure: this.emailConfig.port === 465,
+        host: config.smtpConfig.host,
+        port: config.smtpConfig.port,
+        secure: config.smtpConfig.port === 465,
         auth: {
-          user: this.emailConfig.username,
-          pass: this.emailConfig.password,
+          user: config.smtpConfig.username,
+          pass: config.smtpConfig.password,
         },
       });
 
       await transporter.sendMail({
-        from: this.emailConfig.from,
+        from: config.from,
         to,
         subject,
         html,
       });
-    } else if (this.emailConfig.provider === 'resend') {
-      const resend = new Resend(this.emailConfig.apiKey);
+    } else if (config.provider === EmailProvider.RESEND) {
+      if (!config.resendConfig?.apiKey) {
+        throw new Error('Resend API key not found');
+      }
+
+      const resend = new Resend(config.resendConfig.apiKey);
       
       await resend.emails.send({
-        from: this.emailConfig.from,
+        from: config.from,
         to,
         subject,
         html,

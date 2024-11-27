@@ -1,30 +1,16 @@
-import NextAuth  from "next-auth";
+import NextAuth from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import { PrismaAdapter } from "@auth/prisma-adapter";
 import { prisma } from "@/lib/db/prisma";
 import bcrypt from "bcryptjs";
 
-export const {auth,signIn,signOut,handlers} = NextAuth({
+export const {auth, signIn, signOut, handlers} = NextAuth({
   trustHost: true,
   adapter: PrismaAdapter(prisma) as any,
   useSecureCookies: false,
-  cookies: {
-    sessionToken: {
-      name: "next-auth.session-token",
-      options: {
-        httpOnly: true,
-        sameSite: 'lax',
-        path: '/',
-        secure: false
-      }
-    }
-  },
+  secret: process.env.NEXTAUTH_SECRET,
   session: { 
     strategy: "jwt",
-    maxAge: 30 * 24 * 60 * 60, // 30 days
-  },
-  jwt: {
-    maxAge: 30 * 24 * 60 * 60, // 30 days
   },
   callbacks: {
     async jwt({ token, user }) {
@@ -41,15 +27,6 @@ export const {auth,signIn,signOut,handlers} = NextAuth({
       }
       return session;
     },
-    async redirect({ url, baseUrl }) {
-      const urlObj = new URL(url, baseUrl);
-      return urlObj.toString();
-    },
-  },
-  secret: process.env.NEXTAUTH_SECRET,
-  pages: {
-    signIn: "/auth/login",
-    error: "/auth/error",
   },
   providers: [
     CredentialsProvider({
@@ -67,7 +44,10 @@ export const {auth,signIn,signOut,handlers} = NextAuth({
 
         if (!user || !user.password) return null;
 
-        const isPasswordValid = await bcrypt.compare(credentials.password as string, user.password);
+        const isPasswordValid = await bcrypt.compare(
+          credentials.password as string,
+          user.password
+        );
 
         if (!isPasswordValid) return null;
 
@@ -79,7 +59,11 @@ export const {auth,signIn,signOut,handlers} = NextAuth({
         };
       },
     }),
-  ]
+  ],
+  pages: {
+    signIn: "/auth/login",
+    error: "/auth/error",
+  },
 });
 
 

@@ -11,12 +11,12 @@ import { removeContainer } from "@/lib/docker/actions";
 import { DatabaseSettingsTab } from "@/components/database/tabs/settings-tab";
 import { DatabaseLogsTab } from "@/components/database/tabs/logs-tab";
 import { DatabaseConnectionTab } from "@/components/database/tabs/connection-tab";
-import { Suspense, use } from "react";
+import { Suspense } from "react";
 
 interface PageProps {
-  params: Promise<{
+  params: {
     id: string;
-  }>;
+  };
 }
 
 function DatabasePageContent({ id }: { id: string }) {
@@ -116,15 +116,13 @@ function DatabasePageContent({ id }: { id: string }) {
 }
 
 export default function DatabasePage({ params }: PageProps) {
-  const resolvedParams = use(params);
-  
   return (
     <Suspense fallback={
       <div className="flex items-center justify-center h-[calc(100vh-200px)]">
         <Loader2 className="h-8 w-8 animate-spin" />
       </div>
     }>
-      <DatabasePageContent id={resolvedParams.id} />
+      <DatabasePageContent id={params.id} />
     </Suspense>
   );
 }
