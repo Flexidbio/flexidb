@@ -100,7 +100,7 @@ export async function configureDomain(input: DomainConfigInput) {
 
     // Reload Traefik to apply changes
     try {
-      const traefikContainer = dockerClient.docker.getContainer('traefik');
+      const traefikContainer = dockerClient.docker.getContainer('flexidb_traefik');
       await traefikContainer.restart();
     } catch (error) {
       console.error('Failed to restart Traefik:', error);
