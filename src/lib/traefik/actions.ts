@@ -25,7 +25,22 @@ async function ensureDirectoryExists(dirPath: string) {
   try {
     await fs.access(dirPath);
   } catch {
-    await mkdir(dirPath, { recursive: true });
+    try {
+      // Try to create directory with recursive option
+      await mkdir(dirPath, { recursive: true, mode: 0o777 });
+    } catch (error) {
+      if ((error as any).code === 'EACCES') {
+        // If permission denied, try using sudo (only in production)
+        if (process.env.NODE_ENV === 'production') {
+          const { execSync } = require('child_process');
+          execSync(`mkdir -p ${dirPath} && chmod -R 777 ${dirPath}`);
+        } else {
+          throw error;
+        }
+      } else {
+        throw error;
+      }
+    }
   }
 }
 
@@ -38,84 +53,72 @@ export async function configureDomain(input: DomainConfigInput) {
   try {
     const validated = DomainConfigSchema.parse(input);
     
-    // Enhanced domain validation
-    const domainRegex = /^(?!-)[A-Za-z0-9-]+(\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,}$/;
-    if (!domainRegex.test(validated.domain)) {
+    // Validate domain format
+    if (!/^[a-zA-Z0-9][a-zA-Z0-9-]{1,61}[a-zA-Z0-9]\.[a-zA-Z]{2,}$/.test(validated.domain)) {
       throw new Error('Invalid domain format. Please enter a valid domain name (e.g., example.com)');
     }
 
-    // Define config path once
     const configPath = path.join(TRAEFIK_CONFIG_DIR, 'dynamic', 'website.yml');
-
-    // Backup current config
-    try {
-      await fs.copyFile(configPath, `${configPath}.backup`);
-    } catch (e) {
-      // Ignore if backup fails due to non-existent file
-    }
-
-    // Ensure directories exist
-    await ensureDirectoryExists(path.join(TRAEFIK_CONFIG_DIR, 'dynamic'));
     
-    // Create main router configuration for the website
-    const routeConfig = {
-      http: {
-        routers: {
-          website: {
-            rule: `Host(\`${validated.domain}\`)`,
-            service: "website",
-            tls: validated.enableSsl ? {
-              certResolver: "letsencrypt"
-            } : undefined,
-            entryPoints: ["web", "websecure"]
-          }
-        },
-        services: {
-          website: {
-            loadBalancer: {
-              servers: [{
-                url: "http://app:3000"
-              }]
+    // Ensure directories exist with proper permissions
+    await ensureDirectoryExists(path.dirname(configPath));
+
+    // Create configuration with proper error handling
+    try {
+      const routeConfig = {
+        http: {
+          routers: {
+            website: {
+              rule: `Host(\`${validated.domain}\`)`,
+              service: "website",
+              tls: validated.enableSsl ? {
+                certResolver: "letsencrypt"
+              } : undefined,
+              entryPoints: ["web", "websecure"]
+            }
+          },
+          services: {
+            website: {
+              loadBalancer: {
+                servers: [{
+                  url: "http://app:3000"
+                }]
+              }
             }
           }
         }
-      }
-    };
+      };
 
-    // Write the configuration
-    await fs.writeFile(configPath, JSON.stringify(routeConfig, null, 2));
+      // Write configuration with proper permissions
+      await fs.writeFile(configPath, JSON.stringify(routeConfig, null, 2), { mode: 0o666 });
 
-    // Update settings in database
-    await prisma.settings.upsert({
-      where: { id: "default" },
-      create: {
-        id: "default",
-        domain: validated.domain,
-        allowSignups: false
-      },
-      update: {
-        domain: validated.domain
-      }
-    });
+      // Update database settings
+      await prisma.settings.upsert({
+        where: { id: "default" },
+        create: {
+          id: "default",
+          domain: validated.domain,
+          allowSignups: false
+        },
+        update: {
+          domain: validated.domain
+        }
+      });
 
-    // Reload Traefik to apply changes
-    try {
+      // Restart Traefik container
       const traefikContainer = dockerClient.docker.getContainer('flexidb_traefik');
       await traefikContainer.restart();
-    } catch (error) {
-      console.error('Failed to restart Traefik:', error);
-      // Continue anyway as config is updated
-    }
 
-    revalidatePath('/dashboard/settings');
-    return { success: true, domain: validated.domain };
+      revalidatePath('/dashboard/settings');
+      return { success: true, domain: validated.domain };
+    } catch (error) {
+      console.error('Configuration error:', error);
+      throw new Error(`Failed to configure domain: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
   } catch (error) {
     console.error('Failed to configure domain:', error);
     throw error instanceof Error ? error : new Error('Failed to configure domain');
-  } finally {
-    // Ignore cleanup errors
   }
-  
 }
 
 export async function getCurrentDomain() {

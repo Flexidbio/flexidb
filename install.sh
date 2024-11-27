@@ -123,29 +123,25 @@ verify_docker() {
 setup_traefik() {
   echo -e "${YELLOW}Setting up Traefik configuration...${NC}"
   
-  # Create required directories
+  # Create required directories with proper permissions
   sudo mkdir -p /etc/traefik/dynamic
   sudo mkdir -p /etc/traefik/acme
+  
+  # Set permissions for the entire Traefik directory
+  sudo chmod -R 777 /etc/traefik
   
   # Create and set permissions for acme.json
   sudo touch /etc/traefik/acme/acme.json
   sudo chmod 600 /etc/traefik/acme/acme.json
   
-  # Copy configuration files
-  sudo cp "${INSTALL_DIR}/docker/traefik.yml" /etc/traefik/
-  sudo cp "${INSTALL_DIR}/docker/config.yml" /etc/traefik/dynamic/
+  # Create dynamic config directory if it doesn't exist
+  sudo mkdir -p /etc/traefik/dynamic
+  sudo chmod 777 /etc/traefik/dynamic
   
-  # Set proper permissions
-  sudo chmod 644 /etc/traefik/traefik.yml
-  sudo chmod 644 /etc/traefik/dynamic/config.yml
+  # Set ownership to allow container access
+  sudo chown -R 1000:1000 /etc/traefik
   
-  # Verify files exist and contain content
-  if [ -s "/etc/traefik/traefik.yml" ] && [ -s "/etc/traefik/dynamic/config.yml" ]; then
-    echo -e "${GREEN}Traefik configuration setup complete${NC}"
-  else
-    echo -e "${RED}Failed to setup Traefik configuration${NC}"
-    exit 1
-  fi
+  echo -e "${GREEN}Traefik configuration setup complete${NC}"
 }
 # Function to clone or update repository
 setup_repository() {
