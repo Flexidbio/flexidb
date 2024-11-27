@@ -18,27 +18,30 @@ export async function GET(req: Request) {
       throw new Error("Server IP not configured");
     }
 
-    const { address } = await lookup(domain);
-    const isValid = address === serverIp;
+    // Check all DNS records (A records)
+    const resolveDns = promisify(dns.resolve4);
+    try {
+      const addresses = await resolveDns(domain);
+      const isValid = addresses.includes(serverIp);
 
-    return NextResponse.json({
-      isValid,
-      serverIp,
-      domainIp: address,
-      message: isValid 
-        ? "DNS is correctly configured" 
-        : "DNS is not pointing to the correct IP address"
-    });
-  } catch (error) {
-    if (error instanceof Error && (error as any).code === 'ENOTFOUND') {
+      return NextResponse.json({
+        isValid,
+        serverIp,
+        domainIp: addresses[0],
+        allIps: addresses,
+        message: isValid 
+          ? "DNS is correctly configured" 
+          : `DNS is not pointing to the correct IP address. Please add an A record pointing to ${serverIp}`
+      });
+    } catch (dnsError) {
       return NextResponse.json({
         isValid: false,
-        serverIp: process.env.SERVER_IP,
+        serverIp,
         domainIp: null,
-        message: "Domain not found. DNS record may not exist or still be propagating"
+        message: "No DNS records found. Please add an A record for your domain."
       });
     }
-
+  } catch (error) {
     return NextResponse.json({
       isValid: false,
       error: "DNS lookup failed",

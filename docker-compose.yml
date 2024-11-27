@@ -73,8 +73,12 @@ services:
       - flexidb_network
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.app.rule=Host(`${DOMAIN}`)"
-      - "traefik.http.routers.app.entrypoints=web"
+      - "traefik.http.routers.app-domain.rule=Host(`${DOMAIN}`)"
+      - "traefik.http.routers.app-domain.entrypoints=web,websecure"
+      - "traefik.http.routers.app-domain.service=app"
+      - "traefik.http.routers.app-ip.rule=Host(`${SERVER_IP}`)"
+      - "traefik.http.routers.app-ip.entrypoints=web"
+      - "traefik.http.routers.app-ip.service=app"
       - "traefik.http.services.app.loadbalancer.server.port=3000"
 
 networks:
