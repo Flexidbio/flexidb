@@ -249,6 +249,18 @@ setup_docker_permissions() {
   echo -e "${GREEN}Docker permissions configured${NC}"
 }
 
+setup_permissions() {
+  echo -e "${YELLOW}Setting up permissions...${NC}"
+  
+  # Set full permissions for Docker socket
+  sudo chmod 777 /var/run/docker.sock
+  
+  # Set full permissions for app directory
+  sudo chmod -R 777 ${INSTALL_DIR}
+  
+  echo -e "${GREEN}Permissions setup complete${NC}"
+}
+
 # Main installation function
 main() {
   echo -e "${YELLOW}Starting FlexiDB installation...${NC}"
@@ -275,6 +287,9 @@ main() {
   
   # Setup Docker permissions
   setup_docker_permissions
+  
+  # Setup permissions
+
   
   # Start services
   start_services

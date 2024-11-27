@@ -38,9 +38,10 @@ export async function configureDomain(input: DomainConfigInput) {
   try {
     const validated = DomainConfigSchema.parse(input);
     
-    // Validate domain format
-    if (!/^[a-zA-Z0-9][a-zA-Z0-9-]{1,61}[a-zA-Z0-9]\.[a-zA-Z]{2,}$/.test(input.domain)) {
-      throw new Error('Invalid domain format');
+    // Enhanced domain validation
+    const domainRegex = /^(?!-)[A-Za-z0-9-]+(\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,}$/;
+    if (!domainRegex.test(validated.domain)) {
+      throw new Error('Invalid domain format. Please enter a valid domain name (e.g., example.com)');
     }
 
     // Define config path once
@@ -110,7 +111,7 @@ export async function configureDomain(input: DomainConfigInput) {
     return { success: true, domain: validated.domain };
   } catch (error) {
     console.error('Failed to configure domain:', error);
-    throw new Error(error instanceof Error ? error.message : 'Failed to configure domain');
+    throw error instanceof Error ? error : new Error('Failed to configure domain');
   } finally {
     // Ignore cleanup errors
   }

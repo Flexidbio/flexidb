@@ -9,20 +9,42 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle, Loader2 } from "lucide-react";
 import { useConfigureDomain, useCurrentDomain } from "@/hooks/use-traefik";
 
+interface DnsStatus {
+  isValid: boolean;
+  serverIp: string;
+  domainIp: string;
+}
+
 export function DomainSettings() {
   const { data: currentDomain, isLoading: isLoadingDomain } = useCurrentDomain();
   const [domain, setDomain] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [dnsStatus, setDnsStatus] = useState<DnsStatus | null>(null);
+  const [checkingDns, setCheckingDns] = useState(false);
 
   const { mutate: configureDomain, isPending } = useConfigureDomain();
 
   useEffect(() => {
     if (currentDomain) {
       setDomain(currentDomain);
+      checkDns(currentDomain);
     }
   }, [currentDomain]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const checkDns = async (domainToCheck: string) => {
+    setCheckingDns(true);
+    try {
+      const response = await fetch(`/api/dns/check?domain=${domainToCheck}`);
+      const data = await response.json();
+      setDnsStatus(data);
+    } catch (error) {
+      console.error('DNS check failed:', error);
+    } finally {
+      setCheckingDns(false);
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
 
@@ -31,11 +53,17 @@ export function DomainSettings() {
       return;
     }
 
-    // Configure domain with SSL enabled by default
-    configureDomain({
-      domain: domain.trim(),
-      enableSsl: true
-    });
+    try {
+      await configureDomain({
+        domain: domain.trim(),
+        enableSsl: true
+      });
+
+      // Check DNS after configuration
+      await checkDns(domain.trim());
+    } catch (error) {
+      setError(error instanceof Error ? error.message : 'Failed to configure domain');
+    }
   };
 
   return (
@@ -71,7 +99,7 @@ export function DomainSettings() {
                     onChange={(e) => setDomain(e.target.value)}
                     className="flex-1"
                   />
-                  <Button type="submit" disabled={isPending}>
+                  <Button type="submit" disabled={isPending || checkingDns}>
                     {isPending ? (
                       <>
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -87,14 +115,33 @@ export function DomainSettings() {
                 </p>
               </div>
 
+              {dnsStatus && (
+                <Alert variant={dnsStatus.isValid ? "default" : "destructive"}>
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>
+                    {dnsStatus.isValid ? (
+                      "DNS is correctly configured"
+                    ) : (
+                      <>
+                        DNS is not correctly configured. Please update your domain's A record to point to {dnsStatus.serverIp}.
+                        <br />
+                        Current IP: {dnsStatus.domainIp}
+                        <br />
+                        Required IP: {dnsStatus.serverIp}
+                      </>
+                    )}
+                  </AlertDescription>
+                </Alert>
+              )}
+
               <Alert>
                 <AlertCircle className="h-4 w-4" />
                 <AlertDescription>
                   After updating your domain, make sure to:
                   <ol className="list-decimal ml-4 mt-2">
-                    <li>Point your domain&apos;s A record to your server&apos;s IP address</li>
+                    <li>Point your domain's A record to your server's IP address</li>
                     <li>Wait for DNS propagation (may take up to 48 hours)</li>
-                    <li>SSL certificate will be automatically provisioned via Let&apos;s Encrypt</li>
+                    <li>SSL certificate will be automatically provisioned via Let's Encrypt</li>
                   </ol>
                 </AlertDescription>
               </Alert>
