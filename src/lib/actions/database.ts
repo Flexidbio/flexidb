@@ -59,7 +59,8 @@ export async function createDatabaseAction(input: CreateContainerInput) {
       data: {
         container_id: containerResponse.data.id,
         status: "running",
-        port: input.internalPort,
+        port: input.port,
+        internalPort: input.internalPort
       }
     })
 

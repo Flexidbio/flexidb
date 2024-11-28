@@ -25,25 +25,25 @@ export function DatabaseConnectionTab({ database }: DatabaseConnectionTabProps) 
           if (!envVars.POSTGRES_USER || !envVars.POSTGRES_PASSWORD || !envVars.POSTGRES_DB) {
             throw new Error('Missing required PostgreSQL environment variables');
           }
-          return `postgresql://${envVars.POSTGRES_USER}:${envVars.POSTGRES_PASSWORD}@localhost:${database.port}/${envVars.POSTGRES_DB}`;
+          return `postgresql://${envVars.POSTGRES_USER}:${envVars.POSTGRES_PASSWORD}@${process.env.SERVER_IP}:${database.port}/${envVars.POSTGRES_DB}`;
         
         case 'mysql':
           if (!envVars.MYSQL_USER || !envVars.MYSQL_PASSWORD || !envVars.MYSQL_DATABASE) {
             throw new Error('Missing required MySQL environment variables');
           }
-          return `mysql://${envVars.MYSQL_USER}:${envVars.MYSQL_PASSWORD}@localhost:${database.port}/${envVars.MYSQL_DATABASE}`;
+          return `mysql://${envVars.MYSQL_USER}:${envVars.MYSQL_PASSWORD}@${process.env.SERVER_IP}:${database.port}/${envVars.MYSQL_DATABASE}`;
         
         case 'mariadb':
           if (!envVars.MYSQL_USER || !envVars.MYSQL_PASSWORD || !envVars.MYSQL_DATABASE) {
             throw new Error('Missing required MariaDB environment variables');
           }
-          return `mysql://${envVars.MYSQL_USER}:${envVars.MYSQL_PASSWORD}@localhost:${database.port}/${envVars.MYSQL_DATABASE}`;
+          return `mysql://${envVars.MYSQL_USER}:${envVars.MYSQL_PASSWORD}@${process.env.SERVER_IP}:${database.port}/${envVars.MYSQL_DATABASE}`;
         
         case 'mongodb':
           if (!envVars.MONGO_INITDB_ROOT_USERNAME || !envVars.MONGO_INITDB_ROOT_PASSWORD) {
             throw new Error('Missing required MongoDB environment variables');
           }
-          return `mongodb://${envVars.MONGO_INITDB_ROOT_USERNAME}:${envVars.MONGO_INITDB_ROOT_PASSWORD}@localhost:${database.port}`;
+          return `mongodb://${envVars.MONGO_INITDB_ROOT_USERNAME}:${envVars.MONGO_INITDB_ROOT_PASSWORD}@${process.env.SERVER_IP}:${database.port}`;
         
         default:
           console.error('Unsupported database type:', database.type);

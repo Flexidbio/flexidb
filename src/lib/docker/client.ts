@@ -1,7 +1,6 @@
-
-
 import Docker,{Container} from 'dockerode';
 import { networkInterfaces, platform } from 'os';
+import { prisma } from "@/lib/db/prisma"
 
 export interface ContainerInfo {
   id: string;
@@ -108,11 +107,20 @@ export class DockerClient {
     internalPort: number,
     network?: string
   ): Promise<DockerResponse<Container>> {
-    // Pull the image first
-    await this.pullImage(image);
+    // Check if port is already in use
+    const portInUse = await prisma.databaseInstance.findFirst({
+      where: { port: externalPort }
+    })
 
-    const portBindings: any = {};
-    portBindings[`${internalPort}/tcp`] = [{ HostPort: externalPort.toString() }];
+    if (portInUse) {
+      throw new Error(`Port ${externalPort} is already in use`)
+    }
+
+    // Pull the image first
+    await this.pullImage(image)
+
+    const portBindings: any = {}
+    portBindings[`${internalPort}/tcp`] = [{ HostPort: externalPort.toString() }]
     
     const container = await this.docker.createContainer({
       name,
@@ -125,12 +133,12 @@ export class DockerClient {
         PortBindings: portBindings,
         NetworkMode: network || 'bridge'
       }
-    });
+    })
 
     return {
       data: container,
-      status:200
-    };
+      status: 200
+    }
   }
 
   public async getContainerInfo(containerId: string): Promise<ContainerInfo> {
