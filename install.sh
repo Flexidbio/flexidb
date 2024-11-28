@@ -60,24 +60,24 @@ generate_email() {
 # Function to create .env file with required variables
 create_env_file() {
   echo -e "${YELLOW}Creating new .env file...${NC}"
-
+  
   # Generate passwords and get server IP
   DB_PASSWORD=$(generate_password)
   AUTH_SECRET=$(generate_password)
   SERVER_IP=$(get_public_ip)
   ADMIN_EMAIL=$(generate_email)
-
+  
   # Ensure directory exists
   mkdir -p "${INSTALL_DIR}"
-
+  
   # Create .env file with proper permissions
   touch "${INSTALL_DIR}/.env"
   chmod 600 "${INSTALL_DIR}/.env"
-
+  
   # Generate a secure secret for NextAuth
   NEXTAUTH_SECRET=$(openssl rand -base64 32)
-
-  cat > "${INSTALL_DIR}/.env" << EOF
+  
+cat > "${INSTALL_DIR}/.env" << EOF
 # Database Configuration
 POSTGRES_USER=postgres
 POSTGRES_PASSWORD=${DB_PASSWORD}
