@@ -38,8 +38,7 @@ export function DatabaseConnectionTab({ database }: DatabaseConnectionTabProps) 
             throw new Error('Missing required MariaDB environment variables');
           }
           return `mysql://${envVars.MYSQL_USER}:${envVars.MYSQL_PASSWORD}@${process.env.SERVER_IP}:${database.port}/${envVars.MYSQL_DATABASE}`;
-        
-        case 'mongodb':
+        case 'mongo':
           if (!envVars.MONGO_INITDB_ROOT_USERNAME || !envVars.MONGO_INITDB_ROOT_PASSWORD) {
             throw new Error('Missing required MongoDB environment variables');
           }

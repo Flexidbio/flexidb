@@ -8,6 +8,7 @@ const nextConfig = {
     ignoreDuringBuilds: true,
   },
   env: {
+    NEXT_PUBLIC_SERVER_IP: process.env.NEXT_PUBLIC_SERVER_IP,
     SERVER_IP: process.env.SERVER_IP,
     DOMAIN: process.env.DOMAIN,
     NEXTAUTH_URL: process.env.NEXTAUTH_URL,

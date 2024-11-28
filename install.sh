@@ -81,7 +81,8 @@ create_env_file() {
   # Create .env file with proper permissions
   touch "${INSTALL_DIR}/.env"
   chmod 600 "${INSTALL_DIR}/.env"
-
+  # Add to your .env file creation
+  NEXT_PUBLIC_SERVER_IP=${SERVER_IP}
   # Generate a secure secret for NextAuth
   NEXTAUTH_SECRET=$(openssl rand -base64 32)
 
