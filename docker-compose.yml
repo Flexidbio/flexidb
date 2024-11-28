@@ -94,3 +94,5 @@ networks:
 
 volumes:
   postgres_data:
+  next-cache:
+    driver: local
