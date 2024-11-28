@@ -69,11 +69,26 @@ export function useContainerLogs(containerId: string, isLive: boolean = true) {
 }
 
 
-export function useAvailablePorts(internalPort:number ){
+export function useAvailablePorts(internalPort: number) {
   return useQuery({
-    queryKey:['available-ports',internalPort],
-    queryFn:()=> cmdActions.getAvailablePorts(internalPort),
-    refetchInterval:1000
-  })
+    queryKey: ['available-ports', internalPort],
+    queryFn: async () => {
+      try {
+        return await cmdActions.getAvailablePorts(internalPort);
+      } catch (error) {
+        console.error('Failed to fetch available ports:', error);
+        toast({
+          title: 'Error',
+          description: 'Failed to fetch available ports. Please try again.',
+          variant: 'destructive',
+        });
+        throw error;
+      }
+    },
+    refetchInterval: 5000,
+    retry: 2,
+    staleTime: 2000,
+    gcTime: 5000
+  });
 }
 

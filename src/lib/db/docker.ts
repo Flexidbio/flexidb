@@ -9,7 +9,7 @@ export async function getContainers() {
 }
 
 export async function getContainerById(id: string) {
-  console.log("Fetching database with ID:", id);
+  
   
   try {
     const database = await prisma.databaseInstance.findUnique({ 
@@ -18,7 +18,7 @@ export async function getContainerById(id: string) {
       } 
     });
 
-    console.log("Found database:", database);
+    
 
     if (!database) {
       console.log("No database found with ID:", id);

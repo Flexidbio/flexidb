@@ -1,6 +1,7 @@
 import Docker,{Container} from 'dockerode';
 import { networkInterfaces, platform } from 'os';
 import { prisma } from "@/lib/db/prisma"
+import { isPortAvailable } from "@/lib/net/actions"
 
 export interface ContainerInfo {
   id: string;
@@ -107,12 +108,9 @@ export class DockerClient {
     internalPort: number,
     network?: string
   ): Promise<DockerResponse<Container>> {
-    // Check if port is already in use
-    const portInUse = await prisma.databaseInstance.findFirst({
-      where: { port: externalPort }
-    })
-
-    if (portInUse) {
+    // Check if port is actually available using net module
+    const isAvailable = await isPortAvailable(externalPort)
+    if (!isAvailable) {
       throw new Error(`Port ${externalPort} is already in use`)
     }
 

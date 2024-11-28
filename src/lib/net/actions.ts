@@ -1,10 +1,33 @@
 'use server'
 
 import { prisma } from "@/lib/db/prisma"
-import { exec } from 'child_process'
-import { promisify } from 'util'
+import { createServer } from 'net'
 
-const execAsync = promisify(exec)
+export async function isPortAvailable(port: number): Promise<boolean> {
+  return new Promise((resolve) => {
+    const server = createServer()
+    
+    const timeout = setTimeout(() => {
+      server.close()
+      resolve(false)
+    }, 1000)
+    
+    server.once('error', () => {
+      clearTimeout(timeout)
+      server.close()
+      resolve(false)
+    })
+    
+    server.once('listening', () => {
+      clearTimeout(timeout)
+      server.close(() => {
+        resolve(true)
+      })
+    })
+    
+    server.listen(port, '127.0.0.1')
+  })
+}
 
 export async function getAvailablePorts(internalPort: number) {
   try {
@@ -14,26 +37,25 @@ export async function getAvailablePorts(internalPort: number) {
     })
     const usedPortSet = new Set(usedPorts.map(db => db.port))
 
-    // Check system ports in use
-    const { stdout } = await execAsync('netstat -tln | grep LISTEN')
-    const systemPorts = stdout.split('\n')
-      .map(line => {
-        const match = line.match(/:(\d+)/)
-        return match ? parseInt(match[1]) : null
-      })
-      .filter((port): port is number => port !== null)
-
-    // Combine all used ports
-    const allUsedPorts = new Set([...usedPortSet, ...systemPorts])
-
-    // Generate available ports (starting from 5432 for postgres, etc)
+    // Generate available ports starting from internalPort
     const availablePorts = []
     let port = internalPort
-    while (availablePorts.length < 10 && port < 65535) {
-      if (!allUsedPorts.has(port)) {
-        availablePorts.push(port)
+    const maxPort = 65535
+    const maxAttempts = 20 // Try up to 20 ports
+
+    while (availablePorts.length < 10 && port < maxPort && availablePorts.length < maxAttempts) {
+      if (!usedPortSet.has(port)) {
+        // Check if port is actually available
+        const isAvailable = await isPortAvailable(port)
+        if (isAvailable) {
+          availablePorts.push(port)
+        }
       }
       port++
+    }
+
+    if (availablePorts.length === 0) {
+      throw new Error('No available ports found')
     }
 
     return availablePorts

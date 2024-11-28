@@ -11,7 +11,7 @@ const dockerClient = DockerClient.getInstance()
 
 export async function createDatabaseAction(input: CreateContainerInput) {
   const session = await auth()
-  console.log(session)
+  
   if (!session?.user?.id) {
     throw new Error("Unauthorized: User ID not found")
   }
