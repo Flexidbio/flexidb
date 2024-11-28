@@ -19,42 +19,50 @@ interface DnsStatus {
 }
 
 export function DomainSettings() {
-  const { data: currentDomain, isLoading: isLoadingDomain } = useCurrentDomain();
   const [domain, setDomain] = useState("");
-  const [error, setError] = useState<string | null>(null);
   const [dnsStatus, setDnsStatus] = useState<DnsStatus | null>(null);
-  const [checkingDns, setCheckingDns] = useState(false);
-
   const { mutate: configureDomain, isPending } = useConfigureDomain();
+  const { data: currentDomain, isLoading: isLoadingDomain } = useCurrentDomain();
 
   useEffect(() => {
     if (currentDomain) {
       setDomain(currentDomain);
-      checkDns(currentDomain);
     }
   }, [currentDomain]);
 
-  const checkDns = async (domainToCheck: string) => {
-    setCheckingDns(true);
+  const checkDns = async (domain: string) => {
     try {
-      const response = await fetch(`/api/dns/check?domain=${domainToCheck}`);
+      const response = await fetch(`/api/dns/check?domain=${domain}`);
       const data = await response.json();
       setDnsStatus(data);
+      return data.isValid;
     } catch (error) {
-      console.error('DNS check failed:', error);
-    } finally {
-      setCheckingDns(false);
+      console.error('Failed to check DNS:', error);
+      return false;
     }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError(null);
-    try {
-      await configureDomain({ domain, enableSsl: true });
-    } catch (err:any) {
-      setError(err.message || "Failed to configure domain.");
+    if (!domain) return;
+
+    const dnsValid = await checkDns(domain);
+    if (!dnsValid) {
+      // DNS is not valid, but we've already set the status
+      return;
     }
+
+    configureDomain(
+      { domain, enableSsl: true },
+      {
+        onSuccess: () => {
+          // Optionally show success message
+        },
+        onError: (error) => {
+          console.error('Failed to configure domain:', error);
+        }
+      }
+    );
   };
 
   return (
@@ -65,38 +73,49 @@ export function DomainSettings() {
           <CardDescription>Configure your custom domain</CardDescription>
         </CardHeader>
         <CardContent>
-          <div>
+          <div className="space-y-2">
             <Label htmlFor="domain">Domain</Label>
-            <Input
-              id="domain"
-              value={domain}
-              onChange={(e) => setDomain(e.target.value)}
-              placeholder="example.com"
-              required
-            />
+            {currentDomain ? (
+              <div className="flex items-center space-x-2">
+                <Input
+                  id="domain"
+                  value={domain}
+                  onChange={(e) => setDomain(e.target.value)}
+                  disabled={isPending}
+                  className="flex-1"
+                />
+                <div className="text-sm text-muted-foreground">
+                  Current: {currentDomain}
+                </div>
+              </div>
+            ) : (
+              <Input
+                id="domain"
+                placeholder="example.com"
+                value={domain}
+                onChange={(e) => setDomain(e.target.value)}
+                disabled={isPending}
+              />
+            )}
+            <p className="text-sm text-muted-foreground">
+              Enter your domain name without http:// or https://
+            </p>
           </div>
-          <div className="mt-4">
-            <Button type="submit" disabled={isPending}>
-              {isPending ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Updating...
-                </>
-              ) : (
-                "Update"
-              )}
-            </Button>
-          </div>
-          <p className="text-sm text-muted-foreground">
-            Enter your domain name without http:// or https://
-          </p>
 
-          {error && (
-            <Alert variant="destructive" className="mt-4">
-              <AlertCircle className="h-4 w-4" />
-              <AlertDescription>{error}</AlertDescription>
-            </Alert>
-          )}
+          <Button 
+            type="submit" 
+            className="mt-4" 
+            disabled={isPending || !domain}
+          >
+            {isPending ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Updating...
+              </>
+            ) : (
+              'Update'
+            )}
+          </Button>
 
           {dnsStatus && (
             <Alert variant={dnsStatus.isValid ? "default" : "destructive"} className="mt-4">
