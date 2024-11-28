@@ -133,24 +133,17 @@ setup_traefik() {
   sudo mkdir -p /etc/traefik/dynamic
   sudo mkdir -p /etc/traefik/acme
   
-  # Create acme.json with correct permissions
+  # Create files
   sudo touch /etc/traefik/acme/acme.json
-  sudo chmod 600 /etc/traefik/acme/acme.json
-  
-  # Create website.yml with correct permissions
   sudo touch /etc/traefik/dynamic/website.yml
   
-  # Set directory permissions
-  sudo chmod 755 /etc/traefik
-  sudo chmod 755 /etc/traefik/dynamic
-  sudo chmod 755 /etc/traefik/acme
-  
-  # Set file permissions
-  sudo chmod 644 /etc/traefik/dynamic/website.yml
-  
-  # Set ownership to the user running the Node.js application
-  sudo chown -R 1000:1000 /etc/traefik/dynamic
+  # Set permissions for acme.json
+  sudo chmod 600 /etc/traefik/acme/acme.json
   sudo chown root:root /etc/traefik/acme/acme.json
+  
+  # Set permissions for dynamic config
+  sudo chmod -R 755 /etc/traefik/dynamic
+  sudo chown -R 1000:1000 /etc/traefik/dynamic
   
   echo -e "${GREEN}Traefik configuration setup complete${NC}"
 }

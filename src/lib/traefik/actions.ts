@@ -26,20 +26,12 @@ async function ensureDirectoryExists(dirPath: string) {
     await fs.access(dirPath);
   } catch {
     try {
-      // Try to create directory with recursive option
       await fs.mkdir(dirPath, { recursive: true, mode: 0o755 });
     } catch (error: any) {
       if (error.code === 'EACCES') {
-        // If permission denied, try using sudo (only in production)
-        if (process.env.NODE_ENV === 'production') {
-          const { execSync } = require('child_process');
-          execSync(`mkdir -p ${dirPath} && chmod -R 755 ${dirPath}`);
-        } else {
-          throw error;
-        }
-      } else {
-        throw error;
+        throw new Error(`Permission denied: Cannot create directory ${dirPath}. Please ensure proper permissions are set.`);
       }
+      throw error;
     }
   }
 }
@@ -98,16 +90,12 @@ export async function configureDomain(input: DomainConfigInput) {
 
     const yamlStr = yaml.dump(routeConfig);
     try {
-      await fs.writeFile(configPath, yamlStr, { mode: 0o644 });
+      await fs.writeFile(configPath, yamlStr);
     } catch (error: any) {
       if (error.code === 'EACCES') {
-        const { execSync } = require('child_process');
-        execSync(`sudo tee ${configPath} > /dev/null`, { input: yamlStr });
-        execSync(`sudo chmod 644 ${configPath}`);
-        execSync(`sudo chown 1000:1000 ${configPath}`);
-      } else {
-        throw error;
+        throw new Error(`Permission denied: Cannot write to ${configPath}. Please ensure proper permissions are set in the container.`);
       }
+      throw error;
     }
 
     // Update database settings
@@ -131,7 +119,7 @@ export async function configureDomain(input: DomainConfigInput) {
     return { success: true, domain: validated.domain };
   } catch (error: any) {
     console.error('Failed to configure domain:', error);
-    throw error instanceof Error ? error : new Error('Failed to configure domain');
+    throw error;
   }
 }
 
