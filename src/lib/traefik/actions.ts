@@ -73,9 +73,9 @@ export async function configureDomain(input: DomainConfigInput) {
           website: {
             rule: `Host(\`${validated.domain}\`)`,
             service: "website-service",
-            tls: validated.enableSsl ? {
+            tls: {
               certResolver: "letsencrypt"
-            } : undefined,
+            } ,
             entryPoints: ["websecure"]
           },
           "website-http": {
