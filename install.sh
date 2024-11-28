@@ -27,7 +27,7 @@ ______   **         **____     **  **     **     **___     ______
 \ \  **\ \ \ \**__  \ \  __\   \/_/\_\/_  \ \ \  \ \ \/\ \ \ \  __<   
  \ \_\    \ \_____\  \ \_____\   /\_\/\_\  \ \_\  \ \____-  \ \_____\ 
   \/_/     \/_____/   \/_____/   \/_/\/_/   \/_/   \/____/   \/_____/ 
-                                                                      
+                                                                          
 EOF
 echo
 
@@ -134,7 +134,7 @@ setup_traefik() {
   sudo mkdir -p /etc/traefik/acme
 
   # Set permissions for the entire Traefik directory
-  sudo chmod -R 777 /etc/traefik
+  sudo chmod -R 755 /etc/traefik
 
   # Create and set permissions for acme.json
   sudo touch /etc/traefik/acme/acme.json
@@ -142,7 +142,7 @@ setup_traefik() {
 
   # Create dynamic config directory if it doesn't exist
   sudo mkdir -p /etc/traefik/dynamic
-  sudo chmod 777 /etc/traefik/dynamic
+  sudo chmod 755 /etc/traefik/dynamic
 
   # Set ownership to allow container access
   sudo chown -R 1000:1000 /etc/traefik
@@ -166,7 +166,7 @@ setup_repository() {
 
   if [ $? -eq 0 ]; then
     echo -e "${GREEN}Repository cloned successfully${NC}"
-    cd "$INSTALL_DIR"
+    # Removed 'exit 1' to allow script to continue
   else
     echo -e "${RED}Failed to clone repository${NC}"
     exit 1
@@ -202,7 +202,7 @@ wait_for_services() {
   return 1
 }
 
-# Add this new function after setup_repository() and before start_services()
+# Function to setup database schema
 setup_database() {
   echo -e "${YELLOW}Setting up database schema...${NC}"
   cd "$INSTALL_DIR"
@@ -260,7 +260,7 @@ setup_permissions() {
   sudo chmod 777 /var/run/docker.sock
 
   # Set full permissions for app directory
-  sudo chmod -R 777 ${INSTALL_DIR}
+  sudo chmod -R 755 ${INSTALL_DIR}
 
   echo -e "${GREEN}Permissions setup complete${NC}"
 }
@@ -302,6 +302,7 @@ verify_environment() {
 # Main installation function
 main() {
   setup_environment
+  setup_repository
   create_env_file
   verify_environment
 
@@ -309,9 +310,6 @@ main() {
   set -a
   source "${INSTALL_DIR}/.env"
   set +a
-
-  # Setup repository
-  setup_repository
 
   # Setup Traefik
   setup_traefik
