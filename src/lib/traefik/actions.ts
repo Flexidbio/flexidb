@@ -97,7 +97,18 @@ export async function configureDomain(input: DomainConfigInput) {
     };
 
     const yamlStr = yaml.dump(routeConfig);
-    await fs.writeFile(configPath, yamlStr, { mode: 0o644 });
+    try {
+      await fs.writeFile(configPath, yamlStr, { mode: 0o644 });
+    } catch (error: any) {
+      if (error.code === 'EACCES') {
+        const { execSync } = require('child_process');
+        execSync(`sudo tee ${configPath} > /dev/null`, { input: yamlStr });
+        execSync(`sudo chmod 644 ${configPath}`);
+        execSync(`sudo chown 1000:1000 ${configPath}`);
+      } else {
+        throw error;
+      }
+    }
 
     // Update database settings
     await prisma.settings.upsert({
