@@ -42,12 +42,12 @@ get_public_ip() {
   SERVER_IP=$(curl -s https://api.ipify.org || \
               curl -s https://ifconfig.me || \
               curl -s https://icanhazip.com)
-  
+
   if [ -z "$SERVER_IP" ]; then
-    echo "Failed to detect public IP address"
+    echo -e "${RED}Failed to detect public IP address${NC}"
     exit 1
   fi
-  
+
   echo "$SERVER_IP"
 }
 
@@ -60,24 +60,24 @@ generate_email() {
 # Function to create .env file with required variables
 create_env_file() {
   echo -e "${YELLOW}Creating new .env file...${NC}"
-  
+
   # Generate passwords and get server IP
   DB_PASSWORD=$(generate_password)
   AUTH_SECRET=$(generate_password)
   SERVER_IP=$(get_public_ip)
   ADMIN_EMAIL=$(generate_email)
-  
+
   # Ensure directory exists
   mkdir -p "${INSTALL_DIR}"
-  
+
   # Create .env file with proper permissions
   touch "${INSTALL_DIR}/.env"
   chmod 600 "${INSTALL_DIR}/.env"
-  
+
   # Generate a secure secret for NextAuth
   NEXTAUTH_SECRET=$(openssl rand -base64 32)
-  
-cat > "${INSTALL_DIR}/.env" << EOF
+
+  cat > "${INSTALL_DIR}/.env" << EOF
 # Database Configuration
 POSTGRES_USER=postgres
 POSTGRES_PASSWORD=${DB_PASSWORD}
@@ -119,50 +119,51 @@ verify_docker() {
     sudo systemctl start docker
     sudo systemctl enable docker
     # Add current user to docker group
-    sudo usermod -aG docker $USER
+    sudo usermod -aG docker ${ACTUAL_USER}
   fi
-  
+
   echo -e "${GREEN}Docker is ready${NC}"
 }
 
 # Function to setup Traefik directories
 setup_traefik() {
   echo -e "${YELLOW}Setting up Traefik configuration...${NC}"
-  
+
   # Create required directories with proper permissions
   sudo mkdir -p /etc/traefik/dynamic
   sudo mkdir -p /etc/traefik/acme
-  
+
   # Set permissions for the entire Traefik directory
   sudo chmod -R 777 /etc/traefik
-  
+
   # Create and set permissions for acme.json
   sudo touch /etc/traefik/acme/acme.json
   sudo chmod 600 /etc/traefik/acme/acme.json
-  
+
   # Create dynamic config directory if it doesn't exist
   sudo mkdir -p /etc/traefik/dynamic
   sudo chmod 777 /etc/traefik/dynamic
-  
+
   # Set ownership to allow container access
   sudo chown -R 1000:1000 /etc/traefik
-  
+
   echo -e "${GREEN}Traefik configuration setup complete${NC}"
 }
+
 # Function to clone or update repository
 setup_repository() {
   echo -e "${YELLOW}Setting up FlexiDB repository...${NC}"
-  
+
   # Check if directory exists
   if [ -d "$INSTALL_DIR" ]; then
     echo -e "${YELLOW}Removing existing directory...${NC}"
     rm -rf "$INSTALL_DIR"
   fi
-  
+
   # Clone repository as the actual user
   echo -e "${YELLOW}Cloning repository...${NC}"
   sudo -u ${ACTUAL_USER} git clone https://github.com/Flexidbio/flexidb.git "$INSTALL_DIR"
-  
+
   if [ $? -eq 0 ]; then
     echo -e "${GREEN}Repository cloned successfully${NC}"
     cd "$INSTALL_DIR"
@@ -195,7 +196,7 @@ wait_for_services() {
       return 0
     fi
   done
-  
+
   echo -e "${RED}Services failed to become healthy within timeout${NC}"
   docker compose logs
   return 1
@@ -205,7 +206,7 @@ wait_for_services() {
 setup_database() {
   echo -e "${YELLOW}Setting up database schema...${NC}"
   cd "$INSTALL_DIR"
-  
+
   # Wait for database to be ready
   echo -e "${YELLOW}Waiting for database to be ready...${NC}"
   timeout=30
@@ -227,7 +228,7 @@ setup_database() {
   # Run Prisma migrations with -T flag
   echo -e "${YELLOW}Running database migrations...${NC}"
   docker compose exec -T app bunx prisma migrate deploy
-  
+
   if [ $? -eq 0 ]; then
     echo -e "${GREEN}Database schema setup complete${NC}"
   else
@@ -239,30 +240,32 @@ setup_database() {
 # Function to setup Docker permissions
 setup_docker_permissions() {
   echo -e "${YELLOW}Setting up Docker permissions...${NC}"
-  
+
   # Ensure docker group exists with correct GID
   if ! getent group docker > /dev/null; then
     sudo groupadd -g 998 docker
   fi
-  
+
   # Set permissions on Docker socket
   sudo chmod 666 /var/run/docker.sock
-  
+
   echo -e "${GREEN}Docker permissions configured${NC}"
 }
 
+# Function to setup permissions
 setup_permissions() {
   echo -e "${YELLOW}Setting up permissions...${NC}"
-  
+
   # Set full permissions for Docker socket
   sudo chmod 777 /var/run/docker.sock
-  
+
   # Set full permissions for app directory
   sudo chmod -R 777 ${INSTALL_DIR}
-  
+
   echo -e "${GREEN}Permissions setup complete${NC}"
 }
 
+# Function to setup environment variables
 setup_environment() {
   # Get the server's public IP
   SERVER_IP=$(curl -s https://api.ipify.org || curl -s https://ifconfig.me || curl -s https://icanhazip.com)
@@ -274,44 +277,25 @@ setup_environment() {
   # Export for immediate use
   export SERVER_IP
 
-  # Create .env file
-  cat > .env << EOF
-# Server Configuration
-SERVER_IP=${SERVER_IP}
-
-# Auth Configuration
-NEXTAUTH_SECRET=${NEXTAUTH_SECRET}
-NEXTAUTH_URL=http://${SERVER_IP}:3000
-NEXTAUTH_URL_INTERNAL=http://localhost:3000
-NEXT_PUBLIC_APP_URL=http://${SERVER_IP}:3000
-
-# Docker Configuration
-COMPOSE_PROJECT_NAME=flexidb
-DOMAIN=${DOMAIN:-$SERVER_IP}
-
-# Traefik Configuration
-ACME_EMAIL=${ADMIN_EMAIL}
-TRAEFIK_CONFIG_DIR=/etc/traefik
-EOF
-
   echo -e "${GREEN}Environment configured with SERVER_IP: ${SERVER_IP}${NC}"
 }
 
+# Function to verify environment configuration
 verify_environment() {
   echo -e "${YELLOW}Verifying environment configuration...${NC}"
-  
+
   if [ -z "$SERVER_IP" ]; then
     echo -e "${RED}SERVER_IP is not set${NC}"
     exit 1
   fi
-  
+
   echo -e "${GREEN}SERVER_IP is set to: ${SERVER_IP}${NC}"
-  
-  if [ ! -f .env ]; then
-    echo -e "${RED}.env file not found${NC}"
+
+  if [ ! -f "${INSTALL_DIR}/.env" ]; then
+    echo -e "${RED}.env file not found at ${INSTALL_DIR}/.env${NC}"
     exit 1
   fi
-  
+
   echo -e "${GREEN}Environment configuration verified${NC}"
 }
 
@@ -320,36 +304,36 @@ main() {
   setup_environment
   create_env_file
   verify_environment
-  
+
   # Export all variables from .env
   set -a
   source "${INSTALL_DIR}/.env"
   set +a
-  
+
   # Setup repository
   setup_repository
-  
+
   # Setup Traefik
   setup_traefik
-  
+
   # Setup Docker permissions
   setup_docker_permissions
-  
+
   # Setup permissions
   setup_permissions
-  
+
   # Start services
   start_services
-  
+
   # Setup database schema
   setup_database
-  
+
   # Wait for services to be ready
   wait_for_services
-  
+
   SERVER_IP=$(get_public_ip)
   echo -e "\n${GREEN}✨ FlexiDB installation completed!${NC} Access your server at http://${SERVER_IP}:3000"
 }
 
-# Run main installationd
+# Run main installation
 main
