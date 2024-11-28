@@ -38,7 +38,15 @@ generate_password() {
 
 # Function to get public IP address
 get_public_ip() {
-  # Try multiple IP detection services
+  # First try AWS metadata service
+  AWS_IP=$(curl -s --connect-timeout 3 http://169.254.169.254/latest/meta-data/public-ipv4 || echo "")
+  
+  if [ ! -z "$AWS_IP" ]; then
+    echo "$AWS_IP"
+    return
+  fi
+  
+  # If not on AWS, try other IP detection services
   SERVER_IP=$(curl -s https://api.ipify.org || \
               curl -s https://ifconfig.me || \
               curl -s https://icanhazip.com)
@@ -86,9 +94,9 @@ DATABASE_URL=postgresql://postgres:${DB_PASSWORD}@db:5432/flexidb
 
 # Auth Configuration
 NEXTAUTH_SECRET=${NEXTAUTH_SECRET}
-NEXTAUTH_URL=http://${SERVER_IP}:3000
+NEXTAUTH_URL=https://${SERVER_IP}:3000
 NEXTAUTH_URL_INTERNAL=http://localhost:3000
-NEXT_PUBLIC_APP_URL=http://${SERVER_IP}:3000
+NEXT_PUBLIC_APP_URL=https://${SERVER_IP}:3000
 
 # Docker Configuration
 COMPOSE_PROJECT_NAME=flexidb
