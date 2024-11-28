@@ -7,6 +7,7 @@ import { z } from 'zod';
 import fs from 'fs/promises';
 import path from 'path';
 import { prisma } from '@/lib/db/prisma';
+import yaml from 'js-yaml';
 
 const dockerClient = DockerClient.getInstance();
 
@@ -26,13 +27,13 @@ async function ensureDirectoryExists(dirPath: string) {
   } catch {
     try {
       // Try to create directory with recursive option
-      await fs.mkdir(dirPath, { recursive: true, mode: 0o777 });
+      await fs.mkdir(dirPath, { recursive: true, mode: 0o755 });
     } catch (error: any) {
       if (error.code === 'EACCES') {
         // If permission denied, try using sudo (only in production)
         if (process.env.NODE_ENV === 'production') {
           const { execSync } = require('child_process');
-          execSync(`mkdir -p ${dirPath} && chmod -R 777 ${dirPath}`);
+          execSync(`mkdir -p ${dirPath} && chmod -R 755 ${dirPath}`);
         } else {
           throw error;
         }
@@ -95,7 +96,8 @@ export async function configureDomain(input: DomainConfigInput) {
       }
     };
 
-    await fs.writeFile(configPath, JSON.stringify(routeConfig, null, 2), { mode: 0o666 });
+    const yamlStr = yaml.dump(routeConfig);
+    await fs.writeFile(configPath, yamlStr, { mode: 0o644 });
 
     // Update database settings
     await prisma.settings.upsert({
