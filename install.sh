@@ -60,24 +60,24 @@ generate_email() {
 # Function to create .env file with required variables
 create_env_file() {
   echo -e "${YELLOW}Creating new .env file...${NC}"
-  
+
   # Generate passwords and get server IP
   DB_PASSWORD=$(generate_password)
   AUTH_SECRET=$(generate_password)
   SERVER_IP=$(get_public_ip)
   ADMIN_EMAIL=$(generate_email)
-  
+
   # Ensure directory exists
   mkdir -p "${INSTALL_DIR}"
-  
+
   # Create .env file with proper permissions
   touch "${INSTALL_DIR}/.env"
   chmod 600 "${INSTALL_DIR}/.env"
-  
+
   # Generate a secure secret for NextAuth
   NEXTAUTH_SECRET=$(openssl rand -base64 32)
-  
-cat > "${INSTALL_DIR}/.env" << EOF
+
+  cat > "${INSTALL_DIR}/.env" << EOF
 # Database Configuration
 POSTGRES_USER=postgres
 POSTGRES_PASSWORD=${DB_PASSWORD}
@@ -103,7 +103,6 @@ EOF
   # Debug output
   ls -la "${INSTALL_DIR}/.env"
 }
-
 # Function to verify Docker installation
 verify_docker() {
   echo -e "${YELLOW}Checking Docker installation...${NC}"
@@ -317,45 +316,15 @@ verify_environment() {
 
 # Main installation function
 main() {
-  echo -e "${YELLOW}Starting FlexiDB installation...${NC}"
+  setup_environment
+  verify_environment
   
-  # Verify Docker installation
-  verify_docker
+  # Export all variables from .env
+  set -a
+  source "${INSTALL_DIR}/.env"
+  set +a
   
-  # Setup repository
-  setup_repository
-  
-  # Create new .env file
-  create_env_file
-  
-  # Debug: Check if .env was created
-  if [ -f "${INSTALL_DIR}/.env" ]; then
-    echo -e "${GREEN}.env file exists${NC}"
-  else
-    echo -e "${RED}.env file was not created!${NC}"
-    exit 1
-  fi
-  
-  # Setup Traefik
-  setup_traefik
-  
-  # Setup Docker permissions
-  setup_docker_permissions
-  
-  # Setup permissions
-
-  
-  # Start services
-  start_services
-  
-  # Setup database schema
-  setup_database
-  
-  # Wait for services to be ready
-  wait_for_services
-  
-  SERVER_IP=$(get_public_ip)
-  echo -e "\n${GREEN}✨ FlexiDB installation completed!${NC} Access your server at http://${SERVER_IP}:3000"
+  docker-compose up -d
 }
 
 # Run main installationd
