@@ -318,6 +318,7 @@ verify_environment() {
 # Main installation function
 main() {
   setup_environment
+  create_env_file
   verify_environment
   
   # Export all variables from .env
@@ -328,17 +329,6 @@ main() {
   # Setup repository
   setup_repository
   
-  # Create new .env file
-  create_env_file
-  
-  # Debug: Check if .env was created
-  if [ -f "${INSTALL_DIR}/.env" ]; then
-    echo -e "${GREEN}.env file exists${NC}"
-  else
-    echo -e "${RED}.env file was not created!${NC}"
-    exit 1
-  fi
-  
   # Setup Traefik
   setup_traefik
   
@@ -346,7 +336,7 @@ main() {
   setup_docker_permissions
   
   # Setup permissions
-
+  setup_permissions
   
   # Start services
   start_services
