@@ -120,10 +120,9 @@ verify_docker() {
     sudo systemctl enable docker
     # Add current user to docker group
     sudo usermod -aG docker ${ACTUAL_USER}
-    echo -e "${GREEN}Docker is ready${NC}"
-  else
-    echo -e "${GREEN}Docker is already installed and running${NC}"
   fi
+
+  echo -e "${GREEN}Docker is ready${NC}"
 }
 
 # Function to setup Traefik directories and permissions
@@ -135,15 +134,15 @@ setup_traefik() {
   sudo mkdir -p /etc/traefik/acme
 
   # Set permissions for the Traefik directory
-  sudo chmod -R 755 /etc/traefik
+  sudo chmod -R 777 /etc/traefik
 
   # Create and set permissions for acme.json
   sudo touch /etc/traefik/acme/acme.json
-  sudo chmod 600 /etc/traefik/acme/acme.json
+  sudo chmod 777 /etc/traefik/acme/acme.json
 
   # Ensure dynamic directory exists and has correct permissions
   sudo mkdir -p /etc/traefik/dynamic
-  sudo chmod 755 /etc/traefik/dynamic
+  sudo chmod 777 /etc/traefik/dynamic
 
   # Set ownership to root to allow Traefik to write dynamic configs
   sudo chown -R root:root /etc/traefik/dynamic
@@ -151,7 +150,7 @@ setup_traefik() {
   echo -e "${GREEN}Traefik configuration setup complete${NC}"
 }
 
-# Function to setup repository
+# Function to clone or update repository
 setup_repository() {
   echo -e "${YELLOW}Setting up FlexiDB repository...${NC}"
 
@@ -167,8 +166,73 @@ setup_repository() {
 
   if [ $? -eq 0 ]; then
     echo -e "${GREEN}Repository cloned successfully${NC}"
+    # Removed 'exit 1' to allow script to continue
   else
     echo -e "${RED}Failed to clone repository${NC}"
+    exit 1
+  fi
+}
+
+# Function to start services
+start_services() {
+  echo -e "${YELLOW}Starting services...${NC}"
+  cd "$INSTALL_DIR"
+  docker compose down -v 2>/dev/null || true
+  docker compose up -d
+  echo -e "${GREEN}Services started${NC}"
+}
+
+# Function to wait for services
+wait_for_services() {
+  echo -e "${YELLOW}Waiting for services to be ready...${NC}"
+  local timeout=60
+  while [ $timeout -gt 0 ]; do
+    if docker compose ps | grep -q "unhealthy"; then
+      echo -e "${YELLOW}Waiting for services... ($timeout seconds remaining)${NC}"
+      sleep 1
+      ((timeout--))
+    else
+      echo -e "${GREEN}All services are healthy!${NC}"
+      return 0
+    fi
+  done
+
+  echo -e "${RED}Services failed to become healthy within timeout${NC}"
+  docker compose logs
+  return 1
+}
+
+# Function to setup database schema
+setup_database() {
+  echo -e "${YELLOW}Setting up database schema...${NC}"
+  cd "$INSTALL_DIR"
+
+  # Wait for database to be ready
+  echo -e "${YELLOW}Waiting for database to be ready...${NC}"
+  timeout=30
+  while [ $timeout -gt 0 ]; do
+    if docker compose exec -T db pg_isready -h localhost -U postgres > /dev/null 2>&1; then
+      echo -e "${GREEN}Database is ready!${NC}"
+      break
+    fi
+    echo -e "${YELLOW}Waiting for database... ($timeout seconds remaining)${NC}"
+    sleep 1
+    ((timeout--))
+  done
+
+  if [ $timeout -eq 0 ]; then
+    echo -e "${RED}Database failed to become ready within timeout${NC}"
+    exit 1
+  fi
+
+  # Run Prisma migrations with -T flag
+  echo -e "${YELLOW}Running database migrations...${NC}"
+  docker compose exec -T app bunx prisma migrate deploy
+
+  if [ $? -eq 0 ]; then
+    echo -e "${GREEN}Database schema setup complete${NC}"
+  else
+    echo -e "${RED}Failed to setup database schema${NC}"
     exit 1
   fi
 }
@@ -237,33 +301,37 @@ verify_environment() {
 
 # Main installation function
 main() {
+  # 1. Initial setup
   setup_environment
+
+  # 2. Docker setup
   verify_docker
-  setup_traefik
+  setup_docker_permissions
+
+  # 3. Repository and environment setup
   setup_repository
   create_env_file
-  verify_environment
+  verify_environment  # Moved after create_env_file
 
-  # Export all variables from .env
+  # 4. Export environment variables
   set -a
   source "${INSTALL_DIR}/.env"
   set +a
 
-  # Setup Docker permissions
-  setup_docker_permissions
+  # 5. Traefik setup
+  setup_traefik
 
-  # Setup permissions
+  # 6. Permissions
   setup_permissions
 
-  # Start services
+  # 7. Services
   start_services
-
-  # Setup database schema
-  setup_database
-
-  # Wait for services to be ready
   wait_for_services
 
+  # 8. Database setup
+  setup_database
+
+  # 9. Final output
   SERVER_IP=$(get_public_ip)
   echo -e "\n${GREEN}✨ FlexiDB installation completed!${NC} Access your server at http://${SERVER_IP}:3000"
 }

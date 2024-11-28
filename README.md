@@ -1,36 +1,118 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# FlexiDB
 
-## Getting Started
+A modern, self-hosted database management platform built with Next.js 14, shadcn/ui, and Docker.
 
-First, run the development server:
+## Features
 
+- 🚀 Quick database deployment and management
+- 🔐 Built-in authentication with NextAuth v5
+- 🎨 Modern UI with shadcn/ui and Tailwind CSS
+- 🐳 Docker-based infrastructure
+- 📝 Real-time logs and monitoring
+- 🔧 Customizable environment variables
+- 🌐 Custom domain support
+- 📨 Email integration for notifications
+
+## Tech Stack
+
+- Next.js 14 (App Router)
+- TypeScript
+- Prisma
+- TanStack Query
+- Next-Auth v5
+- shadcn/ui
+- Tailwind CSS
+- Docker
+- Traefik
+
+## Prerequisites
+
+- Node.js 18+
+- Docker and Docker Compose
+- Bun (optional, but recommended)
+
+## Installation
+
+1. Clone the repository:
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+git clone https://github.com/yourusername/flexidb.git
+cd flexidb
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+2. Install dependencies:
+```bash
+bun install
+# or
+npm install
+```
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+3. Set up environment variables:
+```bash
+cp .env.example .env
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+4. Initialize the database:
+```bash
+docker compose up -d db
+bun prisma migrate dev
+```
 
-## Learn More
+5. Create an admin user:
+```bash
+bun scripts/create-admin.ts
+```
 
-To learn more about Next.js, take a look at the following resources:
+6. Start the development server:
+```bash
+bun dev
+# or
+npm run dev
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Project Structure
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```
+flexidb/
+├── src/
+│   ├── app/             # Next.js app router pages
+│   ├── components/      # React components
+│   ├── lib/            # Utilities and business logic
+│   └── hooks/          # Custom React hooks
+├── prisma/             # Database schema and migrations
+└── docker/            # Docker configuration files
+```
 
-## Deploy on Vercel
+## Development
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+The project uses Next.js server actions and TanStack Query for data management. Key conventions:
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- Server actions are located in `src/lib/actions/`
+- React components use shadcn/ui for consistent styling
+- Database operations are handled through Prisma client
+- Docker management through custom hooks in `src/hooks/`
+
+## Deployment
+
+1. Build the Docker image:
+```bash
+docker compose build
+```
+
+2. Start the production stack:
+```bash
+docker compose -f docker-compose.yml up -d
+```
+
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Commit your changes
+4. Push to the branch
+5. Open a pull request
+
+## License
+
+This program is free software: you can redistribute it and/or modify it under the terms of the GNU Affero General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU Affero General Public License for more details.
+You should have received a copy of the GNU Affero General Public License along with this program. If not, see https://www.gnu.org/licenses/.
