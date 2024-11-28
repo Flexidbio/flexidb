@@ -75,13 +75,22 @@ export async function configureDomain(input: DomainConfigInput) {
             service: "website-service",
             tls: {
               certResolver: "letsencrypt"
-            } ,
+            },
             entryPoints: ["websecure"]
           },
           "website-http": {
             rule: `Host(\`${validated.domain}\`)`,
             service: "website-service",
-            entryPoints: ["web"]
+            entryPoints: ["web"],
+            middlewares: ["https-redirect"]
+          }
+        },
+        middlewares: {
+          "https-redirect": {
+            redirectScheme: {
+              scheme: "https",
+              permanent: true
+            }
           }
         },
         services: {

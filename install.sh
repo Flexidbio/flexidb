@@ -66,7 +66,7 @@ create_env_file() {
   AUTH_SECRET=$(generate_password)
   SERVER_IP=$(get_public_ip)
   ADMIN_EMAIL=$(generate_email)
-
+  ACME_EMAIL="admin@flexib.site"
   # Ensure directory exists
   mkdir -p "${INSTALL_DIR}"
 
