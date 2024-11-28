@@ -325,7 +325,40 @@ main() {
   source "${INSTALL_DIR}/.env"
   set +a
   
-  docker-compose up -d
+  # Setup repository
+  setup_repository
+  
+  # Create new .env file
+  create_env_file
+  
+  # Debug: Check if .env was created
+  if [ -f "${INSTALL_DIR}/.env" ]; then
+    echo -e "${GREEN}.env file exists${NC}"
+  else
+    echo -e "${RED}.env file was not created!${NC}"
+    exit 1
+  fi
+  
+  # Setup Traefik
+  setup_traefik
+  
+  # Setup Docker permissions
+  setup_docker_permissions
+  
+  # Setup permissions
+
+  
+  # Start services
+  start_services
+  
+  # Setup database schema
+  setup_database
+  
+  # Wait for services to be ready
+  wait_for_services
+  
+  SERVER_IP=$(get_public_ip)
+  echo -e "\n${GREEN}✨ FlexiDB installation completed!${NC} Access your server at http://${SERVER_IP}:3000"
 }
 
 # Run main installationd
