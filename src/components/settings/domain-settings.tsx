@@ -12,7 +12,10 @@ import { useConfigureDomain, useCurrentDomain } from "@/hooks/use-traefik";
 interface DnsStatus {
   isValid: boolean;
   serverIp: string;
-  domainIp: string;
+  domainIp: string | null;
+  allIps?: string[];
+  message: string;
+  error?: string;
 }
 
 export function DomainSettings() {

@@ -6,18 +6,18 @@ services:
     ports:
       - "80:80"
       - "443:443"
-      - "8080:8080"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - /etc/traefik:/etc/traefik
     networks:
       - flexidb_network
     command:
-      - "--api.insecure=true"
       - "--providers.docker=true"
       - "--providers.docker.exposedbydefault=false"
       - "--providers.file.directory=/etc/traefik/dynamic"
       - "--entrypoints.web.address=:80"
+      - "--entrypoints.web.http.redirections.entrypoint.to=websecure"
+      - "--entrypoints.web.http.redirections.entrypoint.scheme=https"
       - "--entrypoints.websecure.address=:443"
       - "--certificatesresolvers.letsencrypt.acme.email=${ACME_EMAIL}"
       - "--certificatesresolvers.letsencrypt.acme.storage=/etc/traefik/acme/acme.json"
@@ -75,11 +75,13 @@ services:
       - "traefik.enable=true"
       - "traefik.http.routers.app-domain.rule=Host(`${DOMAIN}`)"
       - "traefik.http.routers.app-domain.entrypoints=web,websecure"
-      - "traefik.http.routers.app-domain.service=app"
+      - "traefik.http.routers.app-domain.service=app-service"
+      - "traefik.http.routers.app-domain.tls=true"
+      - "traefik.http.routers.app-domain.tls.certresolver=letsencrypt"
       - "traefik.http.routers.app-ip.rule=Host(`${SERVER_IP}`)"
       - "traefik.http.routers.app-ip.entrypoints=web"
-      - "traefik.http.routers.app-ip.service=app"
-      - "traefik.http.services.app.loadbalancer.server.port=3000"
+      - "traefik.http.routers.app-ip.service=app-service"
+      - "traefik.http.services.app-service.loadbalancer.server.port=3000"
 
 networks:
   flexidb_network:

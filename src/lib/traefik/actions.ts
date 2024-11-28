@@ -70,24 +70,22 @@ export async function configureDomain(input: DomainConfigInput) {
     const routeConfig = {
       http: {
         routers: {
-          // Domain-based routing
           website: {
             rule: `Host(\`${validated.domain}\`)`,
-            service: "website",
+            service: "website-service",
             tls: validated.enableSsl ? {
               certResolver: "letsencrypt"
             } : undefined,
-            entryPoints: ["web", "websecure"]
+            entryPoints: ["websecure"]
           },
-          // IP-based routing
-          "website-ip": {
-            rule: `Host(\`${serverIp}\`)`,
-            service: "website",
+          "website-http": {
+            rule: `Host(\`${validated.domain}\`)`,
+            service: "website-service",
             entryPoints: ["web"]
           }
         },
         services: {
-          website: {
+          "website-service": {
             loadBalancer: {
               servers: [{
                 url: "http://app:3000"
