@@ -4,10 +4,9 @@ import { DockerClient } from '@/lib/docker/client';
 import { auth } from '@/auth';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
-import fs,{mkdir} from 'fs/promises';
+import fs from 'fs/promises';
 import path from 'path';
 import { prisma } from '@/lib/db/prisma';
-
 
 const dockerClient = DockerClient.getInstance();
 
@@ -27,9 +26,9 @@ async function ensureDirectoryExists(dirPath: string) {
   } catch {
     try {
       // Try to create directory with recursive option
-      await mkdir(dirPath, { recursive: true, mode: 0o777 });
-    } catch (error) {
-      if ((error as any).code === 'EACCES') {
+      await fs.mkdir(dirPath, { recursive: true, mode: 0o777 });
+    } catch (error: any) {
+      if (error.code === 'EACCES') {
         // If permission denied, try using sudo (only in production)
         if (process.env.NODE_ENV === 'production') {
           const { execSync } = require('child_process');
@@ -117,7 +116,7 @@ export async function configureDomain(input: DomainConfigInput) {
 
     revalidatePath('/dashboard/settings');
     return { success: true, domain: validated.domain };
-  } catch (error) {
+  } catch (error: any) {
     console.error('Failed to configure domain:', error);
     throw error instanceof Error ? error : new Error('Failed to configure domain');
   }
@@ -134,7 +133,7 @@ export async function getCurrentDomain() {
       where: { id: "default" }
     });
     return settings?.domain || null;
-  } catch (error) {
+  } catch (error: any) {
     console.error('Failed to get current domain:', error);
     throw new Error('Failed to get current domain configuration');
   }

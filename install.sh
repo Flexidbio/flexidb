@@ -103,6 +103,7 @@ EOF
   # Debug output
   ls -la "${INSTALL_DIR}/.env"
 }
+
 # Function to verify Docker installation
 verify_docker() {
   echo -e "${YELLOW}Checking Docker installation...${NC}"
