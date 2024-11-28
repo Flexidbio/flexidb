@@ -125,7 +125,7 @@ verify_docker() {
   echo -e "${GREEN}Docker is ready${NC}"
 }
 
-# Function to setup Traefik directories
+# Function to setup Traefik directories and permissions
 setup_traefik() {
   echo -e "${YELLOW}Setting up Traefik configuration...${NC}"
 
@@ -133,19 +133,19 @@ setup_traefik() {
   sudo mkdir -p /etc/traefik/dynamic
   sudo mkdir -p /etc/traefik/acme
 
-  # Set permissions for the entire Traefik directory
-  sudo chmod -R 755 /etc/traefik
+  # Set permissions for the Traefik directory
+  sudo chmod -R 777 /etc/traefik
 
   # Create and set permissions for acme.json
   sudo touch /etc/traefik/acme/acme.json
-  sudo chmod 600 /etc/traefik/acme/acme.json
+  sudo chmod 777 /etc/traefik/acme/acme.json
 
-  # Create dynamic config directory if it doesn't exist
+  # Ensure dynamic directory exists and has correct permissions
   sudo mkdir -p /etc/traefik/dynamic
-  sudo chmod 755 /etc/traefik/dynamic
+  sudo chmod 777 /etc/traefik/dynamic
 
-  # Set ownership to allow container access
-  sudo chown -R 1000:1000 /etc/traefik
+  # Set ownership to root to allow Traefik to write dynamic configs
+  sudo chown -R root:root /etc/traefik/dynamic
 
   echo -e "${GREEN}Traefik configuration setup complete${NC}"
 }
@@ -302,9 +302,11 @@ verify_environment() {
 # Main installation function
 main() {
   setup_environment
+  verify_environment
+  verify_docker
+  setup_traefik
   setup_repository
   create_env_file
-  verify_environment
 
   # Export all variables from .env
   set -a
