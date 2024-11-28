@@ -81,16 +81,7 @@ export async function configureDomain(input: DomainConfigInput) {
           "website-http": {
             rule: `Host(\`${validated.domain}\`)`,
             service: "website-service",
-            entryPoints: ["web"],
-            middlewares: ["https-redirect"]
-          }
-        },
-        middlewares: {
-          "https-redirect": {
-            redirectScheme: {
-              scheme: "https",
-              permanent: true
-            }
+            entryPoints: ["web"]
           }
         },
         services: {

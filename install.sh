@@ -128,25 +128,23 @@ verify_docker() {
 # Function to setup Traefik directories and permissions
 setup_traefik() {
   echo -e "${YELLOW}Setting up Traefik configuration...${NC}"
-
-  # Create required directories with proper permissions
+  
+  # Create required directories
   sudo mkdir -p /etc/traefik/dynamic
   sudo mkdir -p /etc/traefik/acme
-
-  # Set permissions for the Traefik directory
-  sudo chmod -R 777 /etc/traefik
-
-  # Create and set permissions for acme.json
+  
+  # Create acme.json with correct permissions
   sudo touch /etc/traefik/acme/acme.json
-  sudo chmod 777 /etc/traefik/acme/acme.json
-
-  # Ensure dynamic directory exists and has correct permissions
-  sudo mkdir -p /etc/traefik/dynamic
-  sudo chmod 777 /etc/traefik/dynamic
-
-  # Set ownership to root to allow Traefik to write dynamic configs
-  sudo chown -R root:root /etc/traefik/dynamic
-
+  sudo chmod 600 /etc/traefik/acme/acme.json
+  
+  # Set directory permissions
+  sudo chmod 755 /etc/traefik
+  sudo chmod 755 /etc/traefik/dynamic
+  sudo chmod 755 /etc/traefik/acme
+  
+  # Set ownership
+  sudo chown -R root:root /etc/traefik
+  
   echo -e "${GREEN}Traefik configuration setup complete${NC}"
 }
 
