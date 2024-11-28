@@ -50,6 +50,11 @@ export async function configureDomain(input: DomainConfigInput) {
     throw new Error('Unauthorized - Admin access required');
   }
 
+  const serverIp = process.env.SERVER_IP;
+  if (!serverIp) {
+    throw new Error('Server IP not configured. Please check your environment variables.');
+  }
+
   try {
     const validated = DomainConfigSchema.parse(input);
     
@@ -61,11 +66,6 @@ export async function configureDomain(input: DomainConfigInput) {
 
     const configPath = path.join(TRAEFIK_CONFIG_DIR, 'dynamic', 'website.yml');
     await ensureDirectoryExists(path.dirname(configPath));
-
-    const serverIp = process.env.SERVER_IP;
-    if (!serverIp) {
-      throw new Error('Server IP not configured');
-    }
 
     const routeConfig = {
       http: {

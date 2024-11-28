@@ -36,12 +36,18 @@ generate_password() {
   openssl rand -base64 24 | tr -d '/+=' | cut -c1-32
 }
 
-# Function to get server IP
-get_server_ip() {
-  SERVER_IP=$(ip -4 addr show | grep -oP '(?<=inet\s)\d+(\.\d+){3}' | grep -v '^127\.' | head -n 1)
+# Function to get public IP address
+get_public_ip() {
+  # Try multiple IP detection services
+  SERVER_IP=$(curl -s https://api.ipify.org || \
+              curl -s https://ifconfig.me || \
+              curl -s https://icanhazip.com)
+  
   if [ -z "$SERVER_IP" ]; then
-    SERVER_IP=$(hostname -I | awk '{print $1}')
+    echo "Failed to detect public IP address"
+    exit 1
   fi
+  
   echo "$SERVER_IP"
 }
 
@@ -58,7 +64,7 @@ create_env_file() {
   # Generate passwords and get server IP
   DB_PASSWORD=$(generate_password)
   AUTH_SECRET=$(generate_password)
-  SERVER_IP=$(get_server_ip)
+  SERVER_IP=$(get_public_ip)
   ADMIN_EMAIL=$(generate_email)
   
   # Ensure directory exists
@@ -257,6 +263,58 @@ setup_permissions() {
   echo -e "${GREEN}Permissions setup complete${NC}"
 }
 
+setup_environment() {
+  # Get the server's public IP
+  SERVER_IP=$(curl -s https://api.ipify.org || curl -s https://ifconfig.me || curl -s https://icanhazip.com)
+  if [ -z "$SERVER_IP" ]; then
+    echo -e "${RED}Failed to detect public IP address${NC}"
+    exit 1
+  fi
+
+  # Export for immediate use
+  export SERVER_IP
+
+  # Create .env file
+  cat > .env << EOF
+# Server Configuration
+SERVER_IP=${SERVER_IP}
+
+# Auth Configuration
+NEXTAUTH_SECRET=${NEXTAUTH_SECRET}
+NEXTAUTH_URL=http://${SERVER_IP}:3000
+NEXTAUTH_URL_INTERNAL=http://localhost:3000
+NEXT_PUBLIC_APP_URL=http://${SERVER_IP}:3000
+
+# Docker Configuration
+COMPOSE_PROJECT_NAME=flexidb
+DOMAIN=${DOMAIN:-$SERVER_IP}
+
+# Traefik Configuration
+ACME_EMAIL=${ADMIN_EMAIL}
+TRAEFIK_CONFIG_DIR=/etc/traefik
+EOF
+
+  echo -e "${GREEN}Environment configured with SERVER_IP: ${SERVER_IP}${NC}"
+}
+
+verify_environment() {
+  echo -e "${YELLOW}Verifying environment configuration...${NC}"
+  
+  if [ -z "$SERVER_IP" ]; then
+    echo -e "${RED}SERVER_IP is not set${NC}"
+    exit 1
+  fi
+  
+  echo -e "${GREEN}SERVER_IP is set to: ${SERVER_IP}${NC}"
+  
+  if [ ! -f .env ]; then
+    echo -e "${RED}.env file not found${NC}"
+    exit 1
+  fi
+  
+  echo -e "${GREEN}Environment configuration verified${NC}"
+}
+
 # Main installation function
 main() {
   echo -e "${YELLOW}Starting FlexiDB installation...${NC}"
@@ -296,7 +354,7 @@ main() {
   # Wait for services to be ready
   wait_for_services
   
-  SERVER_IP=$(get_server_ip)
+  SERVER_IP=$(get_public_ip)
   echo -e "\n${GREEN}✨ FlexiDB installation completed!${NC} Access your server at http://${SERVER_IP}:3000"
 }
 
