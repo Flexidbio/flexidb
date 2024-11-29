@@ -11,7 +11,13 @@
     "prisma:migrate": "prisma migrate dev",
     "prisma:studio": "prisma studio",
     "git:push": "git add . && git commit -m 'update' && git push",
-    "create-admin": "yarn run scripts/create-admin.ts"
+    "create-admin": "yarn run scripts/create-admin.ts",
+    "version:major": "bun x npm version major",
+    "version:minor": "bun x npm version minor",
+    "version:patch": "bun x npm version patch",
+    "release": "bun run build && git push --follow-tags",
+    "postversion": "bun run release"
+
   },
   "dependencies": {
     "@auth/core": "^0.37.2",

@@ -73,8 +73,13 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - /etc/traefik:/etc/traefik:rw
+      - .:/app:rw  # Allow writing to app directory
+      - /app/node_modules  # Don't override node_modules
+      - /app/.next  # Don't override .next
+      - ./backups:/app/backups  # For database backups
     networks:
       - flexidb_network
+    restarts: always
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.app-domain.rule=Host(`${DOMAIN}`)"
@@ -87,6 +92,7 @@ services:
       - "traefik.http.routers.app-ip.service=app-service"
       - "traefik.http.services.app-service.loadbalancer.server.port=3000"
     user: "1000:1000"
+    
 
 networks:
   flexidb_network:

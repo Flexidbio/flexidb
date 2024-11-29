@@ -3,7 +3,7 @@
 
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-
+import { VersionCheck } from '@/components/version/version-check'
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { Database, Settings, LogOut } from "lucide-react";
@@ -65,6 +65,7 @@ export function Sidebar({ className }: SidebarProps) {
         <div className="p-3 flex flex-col gap-2">
           <div className="flex items-center justify-between px-4">
             <ThemeToggle />
+            <VersionCheck />
             <Button
               variant="ghost"
               size="sm"

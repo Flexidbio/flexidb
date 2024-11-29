@@ -103,3 +103,11 @@ model DatabaseInstance {
   updatedAt    DateTime @updatedAt
 }
 
+
+model SystemUpdate {
+  id        String   @id @default(cuid())
+  version   String
+  timestamp DateTime @default(now())
+  status    String   // 'success' or 'failed'
+  error     String?
+}
