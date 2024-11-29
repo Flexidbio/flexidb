@@ -188,7 +188,32 @@ setup_repository() {
 start_services() {
   echo -e "${YELLOW}Starting services...${NC}"
   cd "$INSTALL_DIR"
-  git checkout feature/mongo-replica-set
+
+  # Stash any local changes
+  echo -e "${YELLOW}Handling local changes...${NC}"
+  git config --global --add safe.directory "$INSTALL_DIR"
+  
+  # Check if there are any changes
+  if git status --porcelain | grep -q '^'; then
+    echo -e "${YELLOW}Stashing local changes...${NC}"
+    git stash push --include-untracked
+  fi
+
+  # Checkout the branch
+  echo -e "${YELLOW}Checking out feature branch...${NC}"
+  git fetch origin
+  git checkout feature/mongo-replica-set || {
+    echo -e "${RED}Failed to checkout branch. Creating new tracking branch...${NC}"
+    git checkout -b feature/mongo-replica-set origin/feature/mongo-replica-set
+  }
+
+  # Pop the stashed changes if any were stashed
+  if git stash list | grep -q 'stash@{0}'; then
+    echo -e "${YELLOW}Reapplying local changes...${NC}"
+    git stash pop
+  fi
+
+  echo -e "${YELLOW}Starting Docker services...${NC}"
   docker compose down -v 2>/dev/null || true
   docker compose up -d
   echo -e "${GREEN}Services started${NC}"
