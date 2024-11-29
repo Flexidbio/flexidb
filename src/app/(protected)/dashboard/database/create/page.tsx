@@ -36,6 +36,12 @@ export default function CreateDatabasePage() {
   const [externalPort, setExternalPort] = useState<number | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [visiblePasswords, setVisiblePasswords] = useState<Set<string>>(new Set())
+  const [replicaSetConfig, setReplicaSetConfig] = useState({
+    replicas: 3,
+    name: "rs0",
+    authDb: "admin"
+  });
+
 
   const { mutate: createDatabase, isPending } = useCreateContainer()
   const { data: availablePorts, isLoading: isLoadingPorts } = useAvailablePorts(
@@ -48,41 +54,69 @@ export default function CreateDatabasePage() {
 
   const handleTypeChange = (newType: string) => {
     try {
-      setError(null)
-      setType(newType)
+      setError(null);
+      setType(newType);
       setName(uniqueNamesGenerator({ 
         dictionaries: [adjectives, colors, animals],
         separator: '-',
         length: 3,
-      }))
+      }));
 
-      const config = DATABASE_CONFIGS[newType as keyof typeof DATABASE_CONFIGS]
+      const config = DATABASE_CONFIGS[newType as keyof typeof DATABASE_CONFIGS];
       if (!config) {
-        throw new Error('Invalid database type selected')
+        throw new Error('Invalid database type selected');
       }
 
-      const newEnvVars: EnvVarField[] = [
-        ...config.required_env_vars.map((key) => ({
-          key,
-          value: key.toLowerCase().includes('port') ? '' : generateRandomString(),
-          required: true,
-          type: getEnvVarType(key),
-        })),
-        ...config.optional_env_vars.map((key) => ({
-          key,
-          value: key.toLowerCase().includes('port') ? '' : generateRandomString(),
-          required: false,
-          type: getEnvVarType(key),
-        })),
-      ]
-      setEnvVars(newEnvVars)
-      setExternalPort(null)
+      // For MongoDB, add additional required environment variables
+      if (newType === 'mongodb') {
+        const newEnvVars: EnvVarField[] = [
+          // Standard MongoDB env vars
+          ...config.required_env_vars.map((key) => ({
+            key,
+            value: key.toLowerCase().includes('port') ? '' : generateRandomString(),
+            required: true,
+            type: getEnvVarType(key),
+          })),
+          // Additional replica set specific vars
+          {
+            key: "MONGO_INITDB_DATABASE",
+            value: "admin",
+            required: true,
+            type: "text"
+          },
+          {
+            key: "MONGO_REPLICA_SET_NAME",
+            value: replicaSetConfig.name,
+            required: true,
+            type: "text"
+          }
+        ];
+        setEnvVars(newEnvVars);
+      } else {
+        // Original env vars handling for other databases
+        const newEnvVars: EnvVarField[] = [
+          ...config.required_env_vars.map((key) => ({
+            key,
+            value: key.toLowerCase().includes('port') ? '' : generateRandomString(),
+            required: true,
+            type: getEnvVarType(key),
+          })),
+          ...config.optional_env_vars.map((key) => ({
+            key,
+            value: key.toLowerCase().includes('port') ? '' : generateRandomString(),
+            required: false,
+            type: getEnvVarType(key),
+          })),
+        ];
+        setEnvVars(newEnvVars);
+      }
+      setExternalPort(null);
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to set database type'
-      setError(message)
-      toast.error(message)
+      const message = err instanceof Error ? err.message : 'Failed to set database type';
+      setError(message);
+      toast.error(message);
     }
-  }
+  };
 
   const handleSubmit = () => {
     try {
@@ -110,13 +144,18 @@ export default function CreateDatabasePage() {
 
       const envVarsObject = envVars.reduce((acc, curr) => {
         if (curr.value) {
-          acc[curr.key] = curr.value
+          acc[curr.key] = curr.value;
         }
-        return acc
-      }, {} as Record<string, string>)
-
+        return acc;
+      }, {} as Record<string, string>);
       const dbConfig = DATABASE_CONFIGS[type];
       if (!dbConfig) throw new Error('Invalid database type');
+       // Add replica set configuration for MongoDB
+       if (type === 'mongodb') {
+        envVarsObject.MONGO_REPLICA_SET_NAME = replicaSetConfig.name;
+        envVarsObject.MONGO_REPLICAS = replicaSetConfig.replicas.toString();
+        envVarsObject.MONGO_AUTH_DB = replicaSetConfig.authDb;
+      }
 
       createDatabase(
         { 
@@ -129,20 +168,23 @@ export default function CreateDatabasePage() {
         },
         { 
           onSuccess: () => {
-            toast.success('Database created successfully')
-            router.push("/dashboard")
+            toast.success(type === 'mongodb' 
+              ? 'MongoDB replica set created successfully' 
+              : 'Database created successfully'
+            );
+            router.push("/dashboard");
           },
           onError: (error) => {
-            const message = error instanceof Error ? error.message : 'Failed to create database'
-            setError(message)
-            toast.error(message)
+            const message = error instanceof Error ? error.message : 'Failed to create database';
+            setError(message);
+            toast.error(message);
           }
         }
-      )
+      );
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to create database'
-      setError(message)
-      toast.error(message)
+      const message = err instanceof Error ? err.message : 'Failed to create database';
+      setError(message);
+      toast.error(message);
     }
   }
 
@@ -269,6 +311,64 @@ export default function CreateDatabasePage() {
                 <p className="text-sm text-muted-foreground mt-1">
                   Internal port {DATABASE_CONFIGS[type].internal_port} will be mapped to your selected external port
                 </p>
+                {type === 'mongodb' && (
+              <div className="space-y-4 border-t pt-4">
+                <h3 className="text-lg font-semibold">Replica Set Configuration</h3>
+                <div className="grid gap-4">
+                  <div>
+                    <Label htmlFor="replicas">Number of Replicas</Label>
+                    <Select
+                      value={replicaSetConfig.replicas.toString()}
+                      onValueChange={(value) => setReplicaSetConfig(prev => ({
+                        ...prev,
+                        replicas: parseInt(value)
+                      }))}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select number of replicas" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {[3, 5, 7].map((num) => (
+                          <SelectItem key={num} value={num.toString()}>
+                            {num} nodes
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Recommended minimum is 3 nodes for high availability
+                    </p>
+                  </div>
+
+                  <div>
+                    <Label htmlFor="replicaSetName">Replica Set Name</Label>
+                    <Input
+                      id="replicaSetName"
+                      value={replicaSetConfig.name}
+                      onChange={(e) => setReplicaSetConfig(prev => ({
+                        ...prev,
+                        name: e.target.value
+                      }))}
+                      placeholder="rs0"
+                    />
+                  </div>
+
+                  <div>
+                    <Label htmlFor="authDb">Authentication Database</Label>
+                    <Input
+                      id="authDb"
+                      value={replicaSetConfig.authDb}
+                      onChange={(e) => setReplicaSetConfig(prev => ({
+                        ...prev,
+                        authDb: e.target.value
+                      }))}
+                        placeholder="admin"
+                      />
+                    </div>
+                  </div>
+                </div>
+                  
+                )}
               </div>
             )}
 
