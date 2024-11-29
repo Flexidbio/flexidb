@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useQuery, useMutation } from '@tanstack/react-query'
 import { Button } from '@/components/ui/button'
 import { Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
@@ -9,7 +9,6 @@ import { getVersionInfo, updateApplication } from '@/lib/version/actions'
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog'
 
 export function VersionCheck() {
-  const queryClient = useQueryClient()
   const [isUpdateDialogOpen, setIsUpdateDialogOpen] = useState(false)
 
   const { data: versionInfo, isLoading } = useQuery({
@@ -21,7 +20,6 @@ export function VersionCheck() {
   const { mutate: updateApp, isPending: isUpdating } = useMutation({
     mutationFn: updateApplication,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['version'] })
       toast.success('Application updated successfully. Restarting...')
       // The app will restart automatically due to Docker's restart policy
     },
@@ -34,7 +32,7 @@ export function VersionCheck() {
     return (
       <Button variant="outline" size="sm" disabled>
         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-        Checking for updates...
+        Checking...
       </Button>
     )
   }
@@ -42,7 +40,7 @@ export function VersionCheck() {
   if (!versionInfo?.hasUpdate) {
     return (
       <Button variant="outline" size="sm" disabled>
-        Up to date (v{versionInfo?.currentVersion})
+        v{versionInfo?.currentVersion}
       </Button>
     )
   }
@@ -52,15 +50,27 @@ export function VersionCheck() {
       <AlertDialog open={isUpdateDialogOpen} onOpenChange={setIsUpdateDialogOpen}>
         <AlertDialogTrigger asChild>
           <Button variant="outline" size="sm">
-            Update available (v{versionInfo.latestVersion})
+            Update to v{versionInfo.latestVersion}
           </Button>
         </AlertDialogTrigger>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Update Application?</AlertDialogTitle>
             <AlertDialogDescription>
-              This will update the application from v{versionInfo.currentVersion} to v{versionInfo.latestVersion}.
+              A new version (v{versionInfo.latestVersion}) is available. Your current version is v{versionInfo.currentVersion}.
               A database backup will be created before updating. The application will restart after the update.
+              {versionInfo.releaseUrl && (
+                <p className="mt-2">
+                  <a 
+                    href={versionInfo.releaseUrl} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="text-blue-500 hover:underline"
+                  >
+                    View release notes
+                  </a>
+                </p>
+              )}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

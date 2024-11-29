@@ -2,26 +2,19 @@
 
 import { auth } from "@/auth"
 import { execSync } from 'child_process'
-import { readFileSync } from 'fs'
-import { prisma } from '@/lib/db/prisma'
-import { VersionInfo } from './types'
+import { readFileSync, appendFileSync } from 'fs'
+import path from 'path'
+import { VersionInfo } from "./types"
 
-// Fetch version from Github API
-async function fetchLatestVersion(): Promise<string> {
-  const response = await fetch(
-    'https://api.github.com/repos/Flexidbio/flexidb/releases/latest',
-    { next: { revalidate: 3600 } } // Cache for 1 hour
-  )
-  
-  if (!response.ok) {
-    throw new Error('Failed to fetch latest version')
-  }
-  
-  const data = await response.json()
-  return data.tag_name.replace('v', '')
+const GITHUB_API_URL = 'https://api.github.com/repos/Flexidbio/flexidb'
+const LOG_FILE = path.join(process.env.INSTALL_DIR || '.', 'update.log')
+
+function logUpdate(message: string) {
+  const timestamp = new Date().toISOString()
+  const logMessage = `[${timestamp}] ${message}\n`
+  appendFileSync(LOG_FILE, logMessage)
 }
 
-// Get current version from package.json
 function getCurrentVersion(): string {
   try {
     const packageJson = JSON.parse(readFileSync('package.json', 'utf8'))
@@ -32,10 +25,29 @@ function getCurrentVersion(): string {
   }
 }
 
-// Compare version strings
+async function fetchLatestRelease(): Promise<string> {
+  const response = await fetch(`${GITHUB_API_URL}/releases/latest`, {
+    headers: {
+      'Accept': 'application/vnd.github.v3+json',
+      ...(process.env.GITHUB_TOKEN && {
+        'Authorization': `token ${process.env.GITHUB_TOKEN}`
+      })
+    },
+    next: { revalidate: 3600 } // Cache for 1 hour
+  })
+  
+  if (!response.ok) {
+    throw new Error('Failed to fetch latest release')
+  }
+  
+  const data = await response.json()
+  return data.tag_name.replace('v', '')
+}
+
 function compareVersions(v1: string, v2: string): number {
-  const v1Parts = v1.split('.').map(Number)
-  const v2Parts = v2.split('.').map(Number)
+  const normalize = (v: string) => v.replace(/^v/, '')
+  const v1Parts = normalize(v1).split('.').map(Number)
+  const v2Parts = normalize(v2).split('.').map(Number)
   
   for (let i = 0; i < 3; i++) {
     if (v1Parts[i] > v2Parts[i]) return 1
@@ -53,12 +65,13 @@ export async function getVersionInfo(): Promise<VersionInfo> {
 
   try {
     const currentVersion = getCurrentVersion()
-    const latestVersion = await fetchLatestVersion()
+    const latestVersion = await fetchLatestRelease()
     
     return {
       currentVersion,
       latestVersion,
-      hasUpdate: compareVersions(latestVersion, currentVersion) > 0
+      hasUpdate: compareVersions(latestVersion, currentVersion) > 0,
+      releaseUrl: `${GITHUB_API_URL}/releases/tag/v${latestVersion}`
     }
   } catch (error) {
     console.error('Error checking version:', error)
@@ -73,48 +86,34 @@ export async function updateApplication(): Promise<void> {
   }
 
   try {
+    logUpdate('Starting application update...')
+
     // Create backup of database
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
-    const backupPath = `/app/backups/db-${timestamp}.sql`
+    const backupPath = path.join(process.env.INSTALL_DIR || '.', 'backups', `db-${timestamp}.sql`)
     execSync(`pg_dump -U ${process.env.POSTGRES_USER} -h db ${process.env.POSTGRES_DB} > ${backupPath}`)
+    logUpdate('Database backup created successfully')
 
     // Pull latest changes
     execSync('git pull origin main')
+    logUpdate('Pulled latest changes from repository')
 
     // Install dependencies
     execSync('bun install')
+    logUpdate('Installed dependencies')
 
     // Run migrations
     execSync('bunx prisma migrate deploy')
+    logUpdate('Database migrations completed')
 
     // Rebuild application
     execSync('bun run build')
+    logUpdate('Application rebuilt successfully')
 
-    // Record update in database
-    await prisma.systemUpdate.create({
-      data: {
-        version: getCurrentVersion(),
-        timestamp: new Date(),
-        status: 'success'
-      }
-    })
-
-    // The application will need to be restarted by Docker
-    // This will be handled by the container's restart policy
-    
+    logUpdate('Update completed successfully')
   } catch (error) {
-    console.error('Update failed:', error)
-    
-    // Record failed update
-    await prisma.systemUpdate.create({
-      data: {
-        version: getCurrentVersion(),
-        timestamp: new Date(),
-        status: 'failed',
-        error: error instanceof Error ? error.message : 'Unknown error'
-      }
-    })
-    
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+    logUpdate(`Update failed: ${errorMessage}`)
     throw new Error('Failed to update application')
   }
 }
