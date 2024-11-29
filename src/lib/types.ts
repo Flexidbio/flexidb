@@ -6,6 +6,10 @@ export interface DatabaseConfig {
     required_env_vars: string[];
     optional_env_vars: string[];
     cmd: string[];
+    volumes?: {
+      source: string;
+      target: string;
+    }[];
   }
   
   export interface DatabaseConfigs {

@@ -18,10 +18,28 @@ export const DATABASE_CONFIGS: DatabaseConfigs = {
   mongodb: {
     image: "mongo:latest",
     internal_port: 27017,
-    required_env_vars: ["MONGO_INITDB_ROOT_USERNAME", "MONGO_INITDB_ROOT_PASSWORD"],
-    optional_env_vars: ["MONGO_INITDB_DATABASE"],
-    cmd: []
+    required_env_vars: [
+      "MONGO_INITDB_ROOT_USERNAME", 
+      "MONGO_INITDB_ROOT_PASSWORD"
+    ],
+    optional_env_vars: [
+      "MONGO_INITDB_DATABASE",
+      "MONGO_REPLICA_SET_NAME",
+      "MONGODB_ADVERTISED_HOSTNAME"
+    ],
+    cmd: ["--replSet", "rs0", "--bind_ip_all"],
+    volumes: [
+      {
+        source: "mongodb_data",
+        target: "/data/db"
+      },
+      {
+        source: "mongodb_config",
+        target: "/data/configdb"
+      }
+    ]
   },
+
   redis: {
     image: "redis:latest",
     internal_port: 6379,

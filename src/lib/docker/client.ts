@@ -2,6 +2,7 @@ import Docker,{Container} from 'dockerode';
 import { networkInterfaces, platform } from 'os';
 import { prisma } from "@/lib/db/prisma"
 import { isPortAvailable } from "@/lib/net/actions"
+import { DATABASE_CONFIGS } from '../config/database.config';
 
 export interface ContainerInfo {
   id: string;
@@ -108,18 +109,31 @@ export class DockerClient {
     internalPort: number,
     network?: string
   ): Promise<DockerResponse<Container>> {
-    // Check if port is actually available using net module
-    const isAvailable = await isPortAvailable(externalPort)
+    const isAvailable = await isPortAvailable(externalPort);
     if (!isAvailable) {
-      throw new Error(`Port ${externalPort} is already in use`)
+      throw new Error(`Port ${externalPort} is already in use`);
     }
-
-    // Pull the image first
-    await this.pullImage(image)
-
-    const portBindings: any = {}
-    portBindings[`${internalPort}/tcp`] = [{ HostPort: externalPort.toString() }]
+  
+    await this.pullImage(image);
+  
+    const portBindings: any = {};
+    portBindings[`${internalPort}/tcp`] = [{ HostPort: externalPort.toString() }];
+  
+    // Get database config
+    const dbType = image.split(':')[0].replace('mongo', 'mongodb');
+    const config = DATABASE_CONFIGS[dbType];
+  
+    // Set up volumes if specified in config
+    const volumes: any = {};
+    const binds: string[] = [];
     
+    if (config.volumes) {
+      config.volumes.forEach(volume => {
+        volumes[volume.target] = {};
+        binds.push(`${volume.source}:${volume.target}`);
+      });
+    }
+  
     const container = await this.docker.createContainer({
       name,
       Image: image,
@@ -129,16 +143,18 @@ export class DockerClient {
       },
       HostConfig: {
         PortBindings: portBindings,
-        NetworkMode: network || 'bridge'
-      }
-    })
-
+        NetworkMode: network || 'bridge',
+        Binds: binds
+      },
+      Volumes: volumes,
+      Cmd: config.cmd
+    });
+  
     return {
       data: container,
       status: 200
-    }
+    };
   }
-
   public async getContainerInfo(containerId: string): Promise<ContainerInfo> {
     const container = this.docker.getContainer(containerId);
     const info = await container.inspect();

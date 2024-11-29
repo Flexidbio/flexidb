@@ -16,30 +16,38 @@ function isMongoDB(image: string): boolean {
   return image.toLowerCase().includes('mongo')
 }
 
+// src/lib/actions/database.ts
+
 export async function createDatabaseAction(input: CreateContainerInput) {
-  const session = await auth()
+  const session = await auth();
   
   if (!session?.user?.id) {
-    throw new Error("Unauthorized: User ID not found")
+    throw new Error("Unauthorized: User ID not found");
   }
 
-  try {
-    // Special handling for MongoDB instances
-    if (isMongoDB(input.image)) {
-      const mongoInstance = await mongoService.createMongoDBReplicaSet(
-        input.name,
-        session.user.id,
-        input.envVars,
-        input.port
-      )
-      
-      revalidatePath("/dashboard/containers")
-      return { success: true, container: mongoInstance }
-    }
+  const containerId = randomUUID();
+  const safeName = `${input.name.toLowerCase().replace(/[^a-z0-9-]/g, '-')}-${containerId}`;
 
-    // Standard database creation flow for non-MongoDB instances
-    const containerId = randomUUID()
-    const safeName = `${input.name.toLowerCase().replace(/[^a-z0-9-]/g, '-')}-${containerId}`
+  try {
+    // Create volume for MongoDB if needed
+    if (input.image.includes('mongo')) {
+      await dockerClient.docker.createVolume({
+        Name: `mongodb_data_${containerId}`,
+        Driver: 'local'
+      });
+      
+      await dockerClient.docker.createVolume({
+        Name: `mongodb_config_${containerId}`,
+        Driver: 'local'
+      });
+
+      // Add replica set configuration
+      input.envVars = {
+        ...input.envVars,
+        MONGO_REPLICA_SET_NAME: 'rs0',
+        MONGODB_ADVERTISED_HOSTNAME: 'localhost'
+      };
+    }
 
     // Create database entry
     const dbContainer = await prisma.databaseInstance.create({
@@ -53,9 +61,9 @@ export async function createDatabaseAction(input: CreateContainerInput) {
         status: "creating",
         container_id: containerId,
         envVars: input.envVars,
-        userId: session.user.id,
+        userId: session.user.id
       }
-    })
+    });
 
     // Create Docker container
     const containerResponse = await dockerClient.createContainer(
@@ -65,34 +73,54 @@ export async function createDatabaseAction(input: CreateContainerInput) {
       input.port,
       input.internalPort,
       input.network
-    )
+    );
 
     if (!containerResponse?.data) {
-      throw new Error("Failed to create Docker container")
+      throw new Error("Failed to create Docker container");
     }
 
     // Start container and update database
-    await dockerClient.startContainer(containerResponse.data.id)
-    const containerInfo = await dockerClient.getContainerInfo(containerResponse.data.id)
+    await dockerClient.startContainer(containerResponse.data.id);
+    
+    // Initialize MongoDB replica set if needed
+    if (input.image.includes('mongo')) {
+      await new Promise(resolve => setTimeout(resolve, 5000)); // Wait for MongoDB to start
+      
+      const config = {
+        _id: "rs0",
+        members: [{ _id: 0, host: "localhost:" + input.port }]
+      };
+
+      await dockerClient.docker.getContainer(containerResponse.data.id).exec({
+        Cmd: [
+          'mongo',
+          '--eval',
+          `rs.initiate(${JSON.stringify(config)})`
+        ],
+        AttachStdout: true,
+        AttachStderr: true
+      });
+    }
+
+    const containerInfo = await dockerClient.getContainerInfo(containerResponse.data.id);
 
     const updatedContainer = await prisma.databaseInstance.update({
       where: { id: dbContainer.id },
       data: {
         container_id: containerResponse.data.id,
         status: "running",
-        port: input.port,
-        internalPort: input.internalPort
+        port: input.port
       }
-    })
+    });
 
-    revalidatePath("/dashboard/containers")
-    return { success: true, container: updatedContainer }
+    revalidatePath("/dashboard");
+    return { success: true, container: updatedContainer };
+
   } catch (error) {
-    console.error("Container creation failed:", error)
-    throw error
+    console.error("Container creation failed:", error);
+    throw error;
   }
 }
-
 export async function getDatabasesAction() {
   const session = await auth()
   if (!session?.user?.id) {
