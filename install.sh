@@ -174,6 +174,14 @@ setup_repository() {
   # Clone repository as the actual user
   echo -e "${YELLOW}Cloning repository...${NC}"
   sudo -u ${ACTUAL_USER} git clone https://github.com/Flexidbio/flexidb.git "$INSTALL_DIR"
+  
+  # Switch to version-control branch
+  echo -e "${YELLOW}Switching to version-control branch...${NC}"
+  cd "$INSTALL_DIR"
+  sudo -u ${ACTUAL_USER} git checkout version-control || {
+    echo -e "${RED}Failed to switch to version-control branch${NC}"
+    exit 1
+  }
 
   if [ $? -eq 0 ]; then
     echo -e "${GREEN}Repository cloned successfully${NC}"
