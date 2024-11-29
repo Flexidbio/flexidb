@@ -1,3 +1,4 @@
+// src/components/version/version-check.tsx
 'use client'
 
 import { useState } from 'react'
@@ -11,46 +12,67 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 export function VersionCheck() {
   const [isUpdateDialogOpen, setIsUpdateDialogOpen] = useState(false)
 
-  const { data: versionInfo, isLoading } = useQuery({
+  const { data: versionInfo, isLoading, error } = useQuery({
     queryKey: ['version'],
     queryFn: getVersionInfo,
     refetchInterval: 1000 * 60 * 60, // Check every hour
+    retry: 2
   })
 
   const { mutate: updateApp, isPending: isUpdating } = useMutation({
     mutationFn: updateApplication,
     onSuccess: () => {
       toast.success('Application updated successfully. Restarting...')
-      // The app will restart automatically due to Docker's restart policy
     },
     onError: (error) => {
       toast.error(error instanceof Error ? error.message : 'Failed to update application')
     }
   })
 
+  // Handle error state
+  if (error) {
+    return (
+      <Button variant="outline" size="sm" disabled>
+        Version check failed
+      </Button>
+    )
+  }
+
+  // Handle loading state
   if (isLoading) {
     return (
-      <Button variant="outline" size="sm" disabled>
-        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-        Checking...
+      <Button variant="outline" size="sm" disabled className="gap-2">
+        <Loader2 className="h-4 w-4 animate-spin" />
+        <span>Checking...</span>
       </Button>
     )
   }
 
-  if (!versionInfo?.hasUpdate) {
+  // If no version info available
+  if (!versionInfo) {
     return (
       <Button variant="outline" size="sm" disabled>
-        v{versionInfo?.currentVersion}
+        Unknown version
       </Button>
     )
   }
 
+  // If no update available
+  if (!versionInfo.hasUpdate) {
+    return (
+      <Button variant="ghost" size="sm" disabled className="text-muted-foreground">
+        v{versionInfo.currentVersion}
+      </Button>
+    )
+  }
+
+  // If update available
   return (
     <>
       <AlertDialog open={isUpdateDialogOpen} onOpenChange={setIsUpdateDialogOpen}>
         <AlertDialogTrigger asChild>
-          <Button variant="outline" size="sm">
-            Update to v{versionInfo.latestVersion}
+          <Button variant="outline" size="sm" className="gap-2">
+            Update v{versionInfo.latestVersion}
           </Button>
         </AlertDialogTrigger>
         <AlertDialogContent>
@@ -58,7 +80,6 @@ export function VersionCheck() {
             <AlertDialogTitle>Update Application?</AlertDialogTitle>
             <AlertDialogDescription>
               A new version (v{versionInfo.latestVersion}) is available. Your current version is v{versionInfo.currentVersion}.
-              A database backup will be created before updating. The application will restart after the update.
               {versionInfo.releaseUrl && (
                 <p className="mt-2">
                   <a 
@@ -81,10 +102,11 @@ export function VersionCheck() {
                 updateApp()
               }}
               disabled={isUpdating}
+              className="gap-2"
             >
               {isUpdating ? (
                 <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  <Loader2 className="h-4 w-4 animate-spin" />
                   Updating...
                 </>
               ) : (
