@@ -4,13 +4,16 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { AlertCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import Link from "next/link";
 
 export function ForgotPasswordForm() {
   const { toast } = useToast();
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [requiresConfig, setRequiresConfig] = useState(false);
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -23,8 +26,15 @@ export function ForgotPasswordForm() {
         body: JSON.stringify({ email }),
       });
 
+      const data = await response.json();
+
+      if (data.requiresConfig) {
+        setRequiresConfig(true);
+        return;
+      }
+
       if (!response.ok) {
-        throw new Error("Something went wrong");
+        throw new Error(data.error || "Something went wrong");
       }
 
       setSubmitted(true);
@@ -38,6 +48,23 @@ export function ForgotPasswordForm() {
       setLoading(false);
     }
   };
+
+  if (requiresConfig) {
+    return (
+      <Alert variant="destructive">
+        <AlertCircle className="h-4 w-4" />
+        <AlertDescription>
+          Email service is not configured. Please contact your administrator to configure email settings
+          or redeploy the application with proper email configuration.
+          <div className="mt-4">
+            <Button variant="outline" asChild>
+              <Link href="/auth/login">Back to Login</Link>
+            </Button>
+          </div>
+        </AlertDescription>
+      </Alert>
+    );
+  }
 
   if (submitted) {
     return (

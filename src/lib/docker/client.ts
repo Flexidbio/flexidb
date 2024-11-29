@@ -76,7 +76,7 @@ export class DockerClient {
 
   public async pullImage(image: string): Promise<void> {
     try {
-      console.log(`Pulling image: ${image}`);
+    //?  console.log(`Pulling image: ${image}`);
       await new Promise((resolve, reject) => {
         this.docker.pull(image, (err: any, stream: any) => {
           if (err) {
@@ -93,7 +93,7 @@ export class DockerClient {
           });
         });
       });
-      console.log(`Successfully pulled image: ${image}`);
+     //? console.log(`Successfully pulled image: ${image}`);
     } catch (error) {
       console.error(`Failed to pull image ${image}:`, error);
       throw error;

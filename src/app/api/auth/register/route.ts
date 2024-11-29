@@ -46,7 +46,7 @@ export async function POST(req: Request) {
       }
     });
 
-    console.log("User created:", { id: user.id, email: user.email }); // Debug log
+   //? console.log("User created:", { id: user.id, email: user.email }); // Debug log
 
     return NextResponse.json(
       { message: "User created successfully" },

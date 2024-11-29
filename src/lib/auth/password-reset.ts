@@ -55,11 +55,18 @@ export class PasswordResetService {
     return resetToken;
   }
 
-  async sendResetEmail(email: string, appUrl: string): Promise<boolean> {
+  async sendResetEmail(email: string, appUrl: string): Promise<{ success: boolean; requiresConfig?: boolean }> {
+    // Check if email is configured
+    const settings = await prisma.settings.findFirst();
+    
+    if (!settings?.emailProvider || !settings?.emailFrom) {
+      return { success: false, requiresConfig: true };
+    }
+
     const resetToken = await this.createResetToken(email);
     
     if (!resetToken) {
-      return false;
+      return { success: false };
     }
 
     const resetUrl = `${appUrl}/auth/reset-password`;
@@ -70,12 +77,12 @@ export class PasswordResetService {
         resetToken,
         resetUrl
       );
-      return true;
+      return { success: true };
     } catch (error) {
       console.error('Error sending reset email:', error);
       // Clean up the token if email fails
       await this.deleteResetToken(resetToken);
-      return false;
+      return { success: false, requiresConfig: true };
     }
   }
 

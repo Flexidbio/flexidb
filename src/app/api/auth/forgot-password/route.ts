@@ -2,6 +2,7 @@
 import { NextResponse } from 'next/server';
 import { PasswordResetService } from '@/lib/auth/password-reset';
 import { z } from 'zod';
+import { isEmailConfigured } from '@/lib/email/utils';
 
 const forgotPasswordSchema = z.object({
   email: z.string().email()
@@ -12,13 +13,28 @@ export async function POST(req: Request) {
     const json = await req.json();
     const body = forgotPasswordSchema.parse(json);
     
+    // Check if email is configured
+    const emailConfigured = await isEmailConfigured();
+    if (!emailConfigured) {
+      return NextResponse.json(
+        { requiresConfig: true, error: 'Email service not configured' },
+        { status: 400 }
+      );
+    }
+
     const passwordResetService = PasswordResetService.getInstance();
-    const success = await passwordResetService.sendResetEmail(
+    const result = await passwordResetService.sendResetEmail(
       body.email,
       process.env.NEXT_PUBLIC_APP_URL!
     );
 
-    if (!success) {
+    if (!result.success) {
+      if (result.requiresConfig) {
+        return NextResponse.json(
+          { requiresConfig: true, error: 'Email service not configured properly' },
+          { status: 400 }
+        );
+      }
       return NextResponse.json(
         { error: 'Failed to send reset email' },
         { status: 400 }
