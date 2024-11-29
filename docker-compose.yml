@@ -73,10 +73,8 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - /etc/traefik:/etc/traefik:rw
-      - .:/app:rw  # Allow writing to app directory
-      - /app/node_modules  # Don't override node_modules
-      - /app/.next  # Don't override .next
-      - ./backups:/app/backups  # For database backups
+      - ./backups:/app/backups
+      - ./logs:/app/logs
     networks:
       - flexidb_network
     restarts: always

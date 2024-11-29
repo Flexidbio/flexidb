@@ -56,7 +56,9 @@ COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
 COPY --from=builder --chown=nextjs:nodejs /app/package.json ./package.json
 COPY --from=builder --chown=nextjs:nodejs /app/bun.lockb ./bun.lockb
 COPY --from=builder --chown=nextjs:nodejs /app/node_modules ./node_modules
-
+# Create directories for logs and backups
+RUN mkdir -p /app/backups /app/logs && \
+    chown -R nextjs:nodejs /app/backups /app/logs
 # Set correct permissions
 RUN chown -R nextjs:nodejs /app
 

@@ -26,14 +26,14 @@ function getCurrentVersion(): string {
 }
 
 async function fetchLatestRelease(): Promise<string> {
-  const response = await fetch(`${GITHUB_API_URL}/releases/latest`, {
+  const response = await fetch(`${GITHUB_API_URL}/releases/latest?include_prereleases=true`, {
     headers: {
       'Accept': 'application/vnd.github.v3+json',
       ...(process.env.GITHUB_TOKEN && {
         'Authorization': `token ${process.env.GITHUB_TOKEN}`
       })
     },
-    next: { revalidate: 3600 } // Cache for 1 hour
+    next: { revalidate: 0 } // Cache for 1 hour
   })
   
   if (!response.ok) {
