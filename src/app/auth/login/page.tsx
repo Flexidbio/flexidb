@@ -4,8 +4,8 @@ import Link from "next/link";
 
 export default function LoginPage() {
     return (
-      <div className="container flex h-screen w-screen flex-col items-center justify-center">
-        <div className="mx-auto flex w-full flex-col justify-center space-y-6 sm:w-[350px]">
+      <main className="flex min-h-screen flex-col items-center justify-center p-4">
+        <div className="w-full max-w-[350px] space-y-6">
           <div className="flex flex-col space-y-2 text-center">
             <h1 className="text-2xl font-semibold tracking-tight">
               Welcome back
@@ -26,6 +26,6 @@ export default function LoginPage() {
             </Link>
           </p>
         </div>
-      </div>
+      </main>
     );
   }
