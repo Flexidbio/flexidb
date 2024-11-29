@@ -8,8 +8,14 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { JsonValue } from "@prisma/client/runtime/library"
-import { Eye, EyeOff } from "lucide-react"
+import { Eye, EyeOff, HelpCircle } from "lucide-react"
 import { EmailProvider } from "@prisma/client"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
 
 
 interface SmtpConfig {
@@ -151,13 +157,26 @@ export function EmailSettings() {
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="emailFrom">From Address</Label>
+          <div className="flex items-center gap-2">
+            <Label htmlFor="emailFrom">From Address</Label>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <HelpCircle className="h-4 w-4 text-muted-foreground" />
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Format: Name &lt;email@domain.com&gt;</p>
+                  <p>Example: Support &lt;support@company.com&gt;</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </div>
           <Input
             className="max-w-xs"
             id="emailFrom"
             value={formData.emailFrom}
             onChange={(e) => handleInputChange('emailFrom', e.target.value)}
-            placeholder="noreply@example.com"
+            placeholder="Support <noreply@example.com>"
             required
           />
         </div>

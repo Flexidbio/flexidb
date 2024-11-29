@@ -17,8 +17,6 @@ export function DatabaseConnectionTab({ database }: DatabaseConnectionTabProps) 
 
   const getConnectionString = () => {
     const envVars = database.envVars as Record<string, string>;
-    console.log("Database type:", database.type);
-    console.log("Environment variables:", envVars);
     
     try {
       switch (database.type) {
@@ -39,6 +37,7 @@ export function DatabaseConnectionTab({ database }: DatabaseConnectionTabProps) 
             throw new Error('Missing required MariaDB environment variables');
           }
           return `mysql://${envVars.MYSQL_USER}:${envVars.MYSQL_PASSWORD}@${env.serverIp}:${database.port}/${envVars.MYSQL_DATABASE}`;
+        
         case 'mongo':
           if (!envVars.MONGO_INITDB_ROOT_USERNAME || !envVars.MONGO_INITDB_ROOT_PASSWORD) {
             throw new Error('Missing required MongoDB environment variables');
@@ -46,8 +45,7 @@ export function DatabaseConnectionTab({ database }: DatabaseConnectionTabProps) 
           return `mongodb://${envVars.MONGO_INITDB_ROOT_USERNAME}:${envVars.MONGO_INITDB_ROOT_PASSWORD}@${env.serverIp}:${database.port}`;
         
         default:
-          console.error('Unsupported database type:', database.type);
-          return `Connection string not available for database type: ${database.type}`;
+          throw new Error(`Unsupported database type: ${database.type}`);
       }
     } catch (error) {
       console.error('Error generating connection string:', error);
@@ -78,11 +76,11 @@ export function DatabaseConnectionTab({ database }: DatabaseConnectionTabProps) 
           <div className="space-y-2">
             <Label>Host</Label>
             <div className="flex gap-2">
-              <Input value="localhost" readOnly />
+              <Input value={env.serverIp} readOnly />
               <Button
                 variant="outline"
                 size="icon"
-                onClick={() => copyToClipboard("localhost")}
+                onClick={() => copyToClipboard(env.serverIp)}
               >
                 <Copy className="h-4 w-4" />
               </Button>
