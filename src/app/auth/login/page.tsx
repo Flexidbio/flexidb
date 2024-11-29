@@ -1,5 +1,6 @@
 import { Suspense } from "react";
 import { LoginForm } from "@/components/auth/login-form";
+import Link from "next/link";
 
 export default function LoginPage() {
     return (
@@ -16,6 +17,14 @@ export default function LoginPage() {
           <Suspense fallback={<div>Loading...</div>}>
             <LoginForm />
           </Suspense>
+          <p className="px-8 text-center text-sm text-muted-foreground">
+            <Link 
+              href="/auth/forgot-password"
+              className="hover:text-brand underline underline-offset-4"
+            >
+              Forgot your password?
+            </Link>
+          </p>
         </div>
       </div>
     );
