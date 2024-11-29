@@ -2,6 +2,7 @@
 import { randomBytes, createHash } from 'crypto';
 import { prisma } from '@/lib/db/prisma';
 import { EmailService } from '@/lib/email/service';
+import bcrypt from 'bcryptjs';
 
 export class PasswordResetService {
   private static instance: PasswordResetService;
@@ -111,14 +112,15 @@ export class PasswordResetService {
       return false;
     }
 
-    const hashedPassword = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(newPassword));
-
     try {
+      // Hash password using bcrypt instead of crypto.subtle
+      const hashedPassword = await bcrypt.hash(newPassword, 10);
+
       await prisma.$transaction([
         // Update password
         prisma.user.update({
           where: { id: userId },
-          data: { password: Buffer.from(hashedPassword).toString('hex') }
+          data: { password: hashedPassword }
         }),
         // Delete reset token
         prisma.passwordResetToken.deleteMany({
