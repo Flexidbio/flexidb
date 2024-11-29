@@ -77,7 +77,6 @@ services:
       - ./logs:/app/logs
     networks:
       - flexidb_network
-    restarts: always
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.app-domain.rule=Host(`${DOMAIN}`)"
