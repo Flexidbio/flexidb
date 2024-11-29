@@ -1,6 +1,6 @@
 {
   "name": "flexidb",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -17,7 +17,6 @@
     "version:patch": "bun x npm version patch",
     "release": "bun run build && git push --follow-tags",
     "postversion": "bun run release"
-
   },
   "dependencies": {
     "@auth/core": "^0.37.2",
