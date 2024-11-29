@@ -188,6 +188,7 @@ setup_repository() {
 start_services() {
   echo -e "${YELLOW}Starting services...${NC}"
   cd "$INSTALL_DIR"
+  git checkout feature/mongo-replica-set
   docker compose down -v 2>/dev/null || true
   docker compose up -d
   echo -e "${GREEN}Services started${NC}"
