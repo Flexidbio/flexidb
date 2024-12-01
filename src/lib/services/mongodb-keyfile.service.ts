@@ -9,8 +9,8 @@ export class MongoKeyfileService {
   private keyfilePath: string;
 
   private constructor() {
-    // Store keyfiles in a dedicated directory
-    this.keyfilePath = '/data/mongodb-keyfiles';
+    // Change to a Docker-friendly path that persists
+    this.keyfilePath = path.join(process.cwd(), 'data', 'mongodb-keyfiles');
   }
 
   public static getInstance(): MongoKeyfileService {
@@ -23,6 +23,8 @@ export class MongoKeyfileService {
   private async ensureKeyfileDirectory(): Promise<void> {
     try {
       await fs.mkdir(this.keyfilePath, { recursive: true });
+      // Set directory permissions to 777 temporarily to allow Docker to access
+      await fs.chmod(this.keyfilePath, 0o777);
     } catch (error) {
       console.error('Failed to create keyfile directory:', error);
       throw error;
@@ -32,15 +34,14 @@ export class MongoKeyfileService {
   public async generateKeyfile(replicaSetName: string): Promise<string> {
     await this.ensureKeyfileDirectory();
     
-    // Generate a 756-byte random key (MongoDB requirement)
     const keyContent = randomBytes(756).toString('base64');
     const keyfilePath = path.join(this.keyfilePath, `${replicaSetName}.key`);
 
     try {
-      // Write the keyfile
-      await fs.writeFile(keyfilePath, keyContent);
-      // Set correct permissions (MongoDB requires 600)
-      await fs.chmod(keyfilePath, 0o600);
+      // Write keyfile with newline
+      await fs.writeFile(keyfilePath, keyContent + '\n');
+      // Set keyfile permissions to 777 temporarily
+      await fs.chmod(keyfilePath, 0o777);
       
       return keyfilePath;
     } catch (error) {

@@ -96,3 +96,9 @@ volumes:
   postgres_data:
   next-cache:
     driver: local
+  mongodb_keyfile:
+    driver: local
+    driver_opts:
+      type: none
+      device: ${PWD}/data/mongodb-keyfiles
+      o: bind

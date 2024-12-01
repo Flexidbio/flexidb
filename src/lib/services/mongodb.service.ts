@@ -104,6 +104,7 @@ export class MongoDBService {
     const containerConfig = {
       name: containerName,
       Image: MONGODB_CONFIG.image,
+      User: "999:999", // mongodb user in container
       Env: [
         ...Object.entries(envVars).map(([key, value]) => `${key}=${value}`),
         `MONGO_REPLSET_NAME=${MONGODB_REPLICA_CONFIG.replica_set_name}`
@@ -117,41 +118,16 @@ export class MongoDBService {
         "--oplogSize", "128",
         "--wiredTigerCacheSizeGB", "1",
         "--auth",
-        "--clusterAuthMode", "keyFile",
-        "--transitionToAuth"
+        "--clusterAuthMode", "keyFile"
       ],
-      ExposedPorts: {
-        [`${member.internal_port}/tcp`]: {}
-      },
       HostConfig: {
-        RestartPolicy: {
-          Name: "always"
-        },
-        PortBindings: {
-          [`${member.internal_port}/tcp`]: [
-            { HostPort: member.external_port.toString() }
-          ]
-        },
-        NetworkMode: networkName,
         Binds: [
           `${containerName}_data:/data/db`,
           `${keyfilePath}:/data/mongodb-keyfile/keyfile:ro`
         ],
-        Memory: 512 * 1024 * 1024,
-        MemorySwap: 1024 * 1024 * 1024
-      },
-      NetworkingConfig: {
-        EndpointsConfig: {
-          [networkName]: {
-            Aliases: [member.node_name]
-          }
-        }
-      },
-      Healthcheck: {
-        Test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"],
-        Interval: 10000000000,
-        Timeout: 5000000000,
-        Retries: 3
+        // Add these volume permissions
+        SecurityOpt: ["seccomp=unconfined"],
+        Privileged: true
       }
     };
 

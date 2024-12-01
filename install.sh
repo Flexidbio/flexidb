@@ -129,6 +129,9 @@ DOMAIN=${DOMAIN:-$SERVER_IP}
 # Traefik Configuration
 ACME_EMAIL=${ADMIN_EMAIL}
 TRAEFIK_CONFIG_DIR=/etc/traefik
+MONGO_KEYFILE_DIR=${PWD}/data/mongodb-keyfiles
+MONGO_DATA_DIR=${PWD}/data/mongodb
+
 EOF
   chown "$ACTUAL_USER:$ACTUAL_USER" "${INSTALL_DIR}/.env"
     
@@ -301,6 +304,11 @@ start_services() {
     echo -e "${YELLOW}Reapplying local changes...${NC}"
     git stash pop
   fi
+
+  # Setup MongoDB requirements
+  echo -e "${YELLOW}Setting up MongoDB requirements...${NC}"
+  chmod +x ./scripts/setup-mongodb.sh
+  ./scripts/setup-mongodb.sh
 
   echo -e "${YELLOW}Starting Docker services...${NC}"
   docker compose down -v 2>/dev/null || true
