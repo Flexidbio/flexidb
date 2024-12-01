@@ -8,7 +8,8 @@ import { MongoDBService } from "@/lib/services/mongodb.service"
 import { randomUUID } from "crypto"
 import { revalidatePath } from "next/cache"
 import { MongoComposeService } from "@/lib/services/mongodb-compose.service"
-import { cleanupMongoReplicaSet, createMongoReplicaSet } from "./mongo"
+import { cleanupMongoReplicaSet} from "./mongo"
+import { MongoDBManager } from "@/lib/services/mongodb-manager.service"
 
 const dockerClient = DockerClient.getInstance()
 const mongoService = MongoDBService.getInstance()
@@ -30,15 +31,15 @@ export async function createDatabaseAction(input: CreateContainerInput) {
   const containerId = randomUUID()
   
   try {
-    // Handle MongoDB differently using compose
+    // Handle MongoDB differently
     if (isMongoDB(input.image)) {
-      // Create replica set first
-      const replicaSetInfo = await createMongoReplicaSet(
+      const mongoManager = MongoDBManager.getInstance();
+      
+      const replicaSetInfo = await mongoManager.createReplicaSet(
         containerId,
         input.port
-      )
-
-      // Only create database record after successful replica set creation
+      );
+      
       const dbContainer = await prisma.databaseInstance.create({
         data: {
           id: containerId,
@@ -48,21 +49,20 @@ export async function createDatabaseAction(input: CreateContainerInput) {
           port: input.port,
           internalPort: input.internalPort,
           status: "running",
-          container_id: containerId,
+          container_id: containerId, // Using instance ID as container ID for replica sets
           envVars: {
-            ...input.envVars,
             MONGO_ROOT_USERNAME: replicaSetInfo.username,
             MONGO_ROOT_PASSWORD: replicaSetInfo.password,
-            REPLICA_SET_NAME: 'rs0',
+            REPLICA_SET_NAME: replicaSetInfo.replicaSetName,
             PRIMARY_PORT: replicaSetInfo.primaryPort,
             SECONDARY_PORTS: replicaSetInfo.secondaryPorts
           },
           userId: session.user.id
         }
-      })
+      });
 
-      revalidatePath("/dashboard")
-      return { success: true, container: dbContainer }
+      revalidatePath("/dashboard");
+      return { success: true, container: dbContainer };
     }
 
     // For non-MongoDB databases

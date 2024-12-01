@@ -55,3 +55,12 @@ export interface DatabaseConfig {
     network?: string;
   }
   
+export interface MongoReplicaSetConfig {
+  primaryPort: number;
+  secondaryPorts: number[];
+  keyfilePath: string;
+  networkName: string;
+  username: string;
+  password: string;
+  instanceId: string;
+}
