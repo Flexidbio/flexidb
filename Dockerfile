@@ -59,6 +59,11 @@ COPY --from=builder --chown=nextjs:nodejs /app/node_modules ./node_modules
 
 # Set correct permissions
 RUN chown -R nextjs:nodejs /app
+# In your Dockerfile, add:
+USER root
+RUN mkdir -p /var/lib/mongodb && \
+    chown -R 999:999 /var/lib/mongodb && \
+    chmod -R 700 /var/lib/mongodb
 
 # Switch to non-root user
 USER nextjs

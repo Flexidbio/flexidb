@@ -73,6 +73,7 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - /etc/traefik:/etc/traefik:rw
+      - /var/lib/mongodb:/var/lib/mongodb
     networks:
       - flexidb_network
     labels:
