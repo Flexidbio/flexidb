@@ -43,13 +43,16 @@ export class MongoDBService {
         console.log(`Container state: ${info.State.Status}`);
   
         if (info.State.Status === 'running') {
-          // Check if MongoDB is actually accepting connections
+          // Add delay before checking MongoDB connection
+          await new Promise(resolve => setTimeout(resolve, 5000));
+          
           try {
             const exec = await container.exec({
               Cmd: [
                 'mongosh',
+                '--quiet',
                 '--eval',
-                'db.runCommand({ ping: 1 })'
+                'db.adminCommand({ ping: 1 })'
               ],
               AttachStdout: true,
               AttachStderr: true
@@ -66,40 +69,23 @@ export class MongoDBService {
               stream.on('error', reject);
             });
   
-            console.log('MongoDB command output:', output);
-  
             if (output.includes('"ok" : 1')) {
               console.log('MongoDB is accepting connections');
               return true;
             }
-          } catch (cmdError: unknown) {
-            if (cmdError instanceof Error) {
-              console.log('MongoDB not yet accepting connections:', cmdError.message);
-            } else {
-              console.log('MongoDB not yet accepting connections: Unknown error');
-            }
+          } catch (cmdError) {
+            console.log('Waiting for MongoDB to initialize...');
           }
         } else if (info.State.Status === 'exited' || info.State.Status === 'dead') {
           const logs = await container.logs({ stdout: true, stderr: true });
           console.error('Container failed to start. Logs:', logs.toString());
           return false;
         }
-      } catch (error: unknown) {
-        if (error instanceof Error) {
-          console.log(`Error checking container: ${error.message}`);
-        } else {
-          console.log('Error checking container: Unknown error');
-        }
+      } catch (error) {
+        console.error('Error checking container:', error);
       }
 
       await new Promise(resolve => setTimeout(resolve, 2000));
-    }
-  
-    try {
-      const logs = await container.logs({ stdout: true, stderr: true });
-      console.error('Container logs at timeout:', logs.toString());
-    } catch (error) {
-      console.error('Failed to get container logs:', error);
     }
   
     return false;
@@ -115,9 +101,6 @@ export class MongoDBService {
   ): Promise<any> {
     console.log(`Creating MongoDB container: ${containerName}`);
     
-    // Each container gets its own data directory
-    const dataDir = `/data/db/${containerName}`;
-    
     const containerConfig = {
       name: containerName,
       Image: MONGODB_CONFIG.image,
@@ -128,16 +111,22 @@ export class MongoDBService {
       Cmd: [
         "mongod",
         "--replSet", MONGODB_REPLICA_CONFIG.replica_set_name,
-        "--keyFile", "/data/mongodb-keyfile/keyfile", // Security keyfile
+        "--keyFile", "/data/mongodb-keyfile/keyfile",
         "--bind_ip_all",
         "--port", member.internal_port.toString(),
         "--oplogSize", "128",
-        "--wiredTigerCacheSizeGB", "1"
+        "--wiredTigerCacheSizeGB", "1",
+        "--auth",
+        "--clusterAuthMode", "keyFile",
+        "--transitionToAuth"
       ],
       ExposedPorts: {
         [`${member.internal_port}/tcp`]: {}
       },
       HostConfig: {
+        RestartPolicy: {
+          Name: "always"
+        },
         PortBindings: {
           [`${member.internal_port}/tcp`]: [
             { HostPort: member.external_port.toString() }
@@ -145,8 +134,8 @@ export class MongoDBService {
         },
         NetworkMode: networkName,
         Binds: [
-          `${dataDir}:/data/db`,
-          `${keyfilePath}:/data/mongodb-keyfile/keyfile:ro`  // Mount keyfile as read-only
+          `${containerName}_data:/data/db`,
+          `${keyfilePath}:/data/mongodb-keyfile/keyfile:ro`
         ],
         Memory: 512 * 1024 * 1024,
         MemorySwap: 1024 * 1024 * 1024
@@ -157,15 +146,25 @@ export class MongoDBService {
             Aliases: [member.node_name]
           }
         }
+      },
+      Healthcheck: {
+        Test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"],
+        Interval: 10000000000,
+        Timeout: 5000000000,
+        Retries: 3
       }
     };
-  
+
     try {
+      // Ensure proper permissions on keyfile directory
+      await this.dockerClient.docker.createVolume({
+        Name: `${containerName}_data`,
+        Driver: 'local'
+      });
+
+      // Pull image and create container
       await this.dockerClient.pullImage(MONGODB_CONFIG.image);
-      console.log('Creating container with config:', JSON.stringify(containerConfig, null, 2));
       const container = await this.dockerClient.docker.createContainer(containerConfig);
-      
-      console.log(`Starting container ${containerName}`);
       await container.start();
       
       return container;
