@@ -104,7 +104,7 @@ export class MongoDBService {
     const containerConfig = {
       name: containerName,
       Image: MONGODB_CONFIG.image,
-      User: "mongodb",
+      User: "999:999",
       Env: [
         ...Object.entries(envVars).map(([key, value]) => `${key}=${value}`),
         `MONGO_REPLSET_NAME=${MONGODB_REPLICA_CONFIG.replica_set_name}`
@@ -123,8 +123,14 @@ export class MongoDBService {
           `${containerName}_data:/data/db`,
           `${keyfilePath}:/data/mongodb-keyfile/keyfile:ro`
         ],
-        NetworkMode: networkName,
-        SecurityOpt: ["seccomp=unconfined"]
+        SecurityOpt: ["seccomp=unconfined"],
+        Privileged: true,
+        NetworkMode: networkName
+      },
+      NetworkingConfig: {
+        EndpointsConfig: {
+          [networkName]: {}
+        }
       }
     };
 

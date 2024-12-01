@@ -39,8 +39,11 @@ export class MongoKeyfileService {
     try {
       // Write keyfile with newline
       await fs.writeFile(keyfilePath, keyContent + '\n');
-      // Set keyfile permissions to 400 (read-only for owner)
-      await fs.chmod(keyfilePath, 0o400);
+      // Set keyfile permissions to 600 (MongoDB requirement)
+      await fs.chmod(keyfilePath, 0o600);
+      
+      // Ensure the keyfile is owned by mongodb user (UID 999)
+      await fs.chown(keyfilePath, 999, 999);
       
       return keyfilePath;
     } catch (error) {

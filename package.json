@@ -11,7 +11,7 @@
     "prisma:migrate": "prisma migrate dev",
     "prisma:studio": "prisma studio",
     "git:push": "git add . && git commit -m 'update' && git push",
-    "push mongo": "git push origin feature/mongo-replica-set"
+    "push:mongo": "git push origin feature/mongo-replica-set"
   },
   "dependencies": {
     "@auth/core": "^0.37.2",
