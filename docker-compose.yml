@@ -105,6 +105,6 @@ volumes:
   mongodb_data:
     driver: local
     driver_opts:
-      type: none
+      type: none 
       device: ${PWD}/data/mongodb
       o: bind

@@ -99,12 +99,10 @@ export class MongoDBService {
     envVars: Record<string, string>,
     keyfilePath: string
   ): Promise<any> {
-    console.log(`Creating MongoDB container: ${containerName}`);
-    
     const containerConfig = {
       name: containerName,
       Image: MONGODB_CONFIG.image,
-      User: "999:999",
+      User: "mongodb", // Use mongodb user
       Env: [
         ...Object.entries(envVars).map(([key, value]) => `${key}=${value}`),
         `MONGO_REPLSET_NAME=${MONGODB_REPLICA_CONFIG.replica_set_name}`
@@ -113,22 +111,19 @@ export class MongoDBService {
         "mongod",
         "--replSet", MONGODB_REPLICA_CONFIG.replica_set_name,
         "--keyFile", "/data/mongodb-keyfile/keyfile",
-        "--bind_ip_all",
-        "--port", member.internal_port.toString(),
-        "--oplogSize", "128",
-        "--wiredTigerCacheSizeGB", "1"
+        "--auth",
+        "--bind_ip_all" 
       ],
       HostConfig: {
         Binds: [
-          `mongodb_data:/data/db`,
-          `mongodb_keyfile:/data/mongodb-keyfile:ro`
+          `${keyfilePath}:/data/mongodb-keyfile/keyfile:ro`,
+          `mongodb_data:/data/db`
         ],
-        SecurityOpt: ["seccomp=unconfined"],
-        Privileged: true,
-        NetworkMode: networkName
+        NetworkMode: networkName,
+        SecurityOpt: ["seccomp=unconfined"]
       }
     };
-
+  
     try {
       await this.dockerClient.docker.createVolume({
         Name: `${containerName}_data`,

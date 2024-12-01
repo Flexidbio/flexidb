@@ -33,26 +33,28 @@ export class MongoKeyfileService {
   public async generateKeyfile(replicaSetName: string): Promise<string> {
     await this.ensureKeyfileDirectory();
     
-    const keyContent = randomBytes(756).toString('base64');
-    const keyfileName = `${replicaSetName}.key`;
-    const keyfilePath = path.join(this.keyfilePath, keyfileName);
-
+    const keyfilePath = path.join(this.keyfilePath, `${replicaSetName}.key`);
+    
     try {
+      // Generate strong key
+      const keyContent = randomBytes(756).toString('base64');
+      
       // Write keyfile with newline
       await fs.writeFile(keyfilePath, keyContent + '\n');
-      // Set keyfile permissions to 600 (MongoDB requirement)
-      await fs.chmod(keyfilePath, 0o600);
       
-      // Ensure the keyfile is owned by mongodb user (UID 999)
+      // Set strict permissions required by MongoDB
+      await fs.chmod(keyfilePath, 0o400);
+      
+      // Ensure mongodb user ownership
       await fs.chown(keyfilePath, 999, 999);
       
-      return keyfileName;
+      return keyfilePath;
     } catch (error) {
       console.error('Failed to generate keyfile:', error);
       throw error;
     }
   }
-
+  
   public async getKeyfilePath(replicaSetName: string): Promise<string> {
     return path.join(this.keyfilePath, `${replicaSetName}.key`);
   }
