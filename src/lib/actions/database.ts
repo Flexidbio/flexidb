@@ -7,9 +7,11 @@ import { DockerClient } from "@/lib/docker/client"
 import { MongoDBService } from "@/lib/services/mongodb.service"
 import { randomUUID } from "crypto"
 import { revalidatePath } from "next/cache"
+import { MongoComposeService } from "@/lib/services/mongodb-compose.service"
 
 const dockerClient = DockerClient.getInstance()
 const mongoService = MongoDBService.getInstance()
+const mongoComposeService = MongoComposeService.getInstance()
 
 // Helper function to check if a database type is MongoDB
 function isMongoDB(image: string): boolean {
@@ -17,38 +19,63 @@ function isMongoDB(image: string): boolean {
 }
 
 // src/lib/actions/database.ts
-
 export async function createDatabaseAction(input: CreateContainerInput) {
-  const session = await auth();
+  const session = await auth()
   
   if (!session?.user?.id) {
-    throw new Error("Unauthorized: User ID not found");
+    throw new Error("Unauthorized: User ID not found")
   }
 
-  const containerId = randomUUID();
-  const safeName = `${input.name.toLowerCase().replace(/[^a-z0-9-]/g, '-')}-${containerId}`;
-
+  const containerId = randomUUID()
+  
   try {
-    // Create volume for MongoDB if needed
-    if (input.image.includes('mongo')) {
-      await dockerClient.docker.createVolume({
-        Name: `mongodb_data_${containerId}`,
-        Driver: 'local'
-      });
-      
-      await dockerClient.docker.createVolume({
-        Name: `mongodb_config_${containerId}`,
-        Driver: 'local'
-      });
+    // Handle MongoDB differently using compose
+    if (isMongoDB(input.image)) {
+      // Create MongoDB replica set using compose
+      const replicaSetInfo = await mongoComposeService.createReplicaSet(
+        containerId,
+        input.port
+      )
 
-      // Add replica set configuration
-      input.envVars = {
-        ...input.envVars,
-        MONGO_REPLICA_SET_NAME: 'rs0',
-        MONGODB_ADVERTISED_HOSTNAME: 'localhost'
-      };
+      // Create database record for MongoDB
+      const dbContainer = await prisma.databaseInstance.create({
+        data: {
+          id: containerId,
+          name: input.name,
+          type: "mongodb",
+          image: input.image,
+          port: input.port,
+          internalPort: input.internalPort,
+          status: "running",
+          container_id: containerId,
+          envVars: {
+            ...input.envVars,
+            MONGO_ROOT_USERNAME: replicaSetInfo.username,
+            MONGO_ROOT_PASSWORD: replicaSetInfo.password,
+            REPLICA_SET_NAME: 'rs0',
+            PRIMARY_PORT: replicaSetInfo.primaryPort,
+            SECONDARY_PORTS: replicaSetInfo.secondaryPorts
+          },
+          userId: session.user.id
+        }
+      })
+
+      revalidatePath("/dashboard")
+      return { success: true, container: dbContainer }
     }
 
+    // Original logic for non-MongoDB databases
+    const safeName = `${input.name.toLowerCase().replace(/[^a-z0-9-]/g, '-')}-${containerId}`
+    // Create Docker container
+
+    const containerResponse = await dockerClient.createContainer(
+      safeName,
+      input.image,
+      input.envVars,
+      input.port,
+      input.internalPort,
+      input.network
+    );
     // Create database entry
     const dbContainer = await prisma.databaseInstance.create({
       data: {
@@ -65,15 +92,7 @@ export async function createDatabaseAction(input: CreateContainerInput) {
       }
     });
 
-    // Create Docker container
-    const containerResponse = await dockerClient.createContainer(
-      safeName,
-      input.image,
-      input.envVars,
-      input.port,
-      input.internalPort,
-      input.network
-    );
+    
 
     if (!containerResponse?.data) {
       throw new Error("Failed to create Docker container");
@@ -174,7 +193,6 @@ export async function deleteDatabaseAction(containerId: string) {
   }
 
   try {
-    // First, get the database instance to check its type
     const dbInstance = await prisma.databaseInstance.findFirst({
       where: { container_id: containerId }
     })
@@ -183,16 +201,18 @@ export async function deleteDatabaseAction(containerId: string) {
       throw new Error("Database instance not found")
     }
 
-    // Special handling for MongoDB replica sets
+    // Use compose service for MongoDB cleanup
     if (isMongoDB(dbInstance.image)) {
-      await mongoService.removeReplicaSet(dbInstance.id)
+      await mongoComposeService.cleanup(dbInstance.id)
     } else {
       // Standard cleanup for other databases
       await dockerClient.removeContainer(containerId)
-      await prisma.databaseInstance.delete({
-        where: { container_id: containerId }
-      })
     }
+
+    // Remove database record
+    await prisma.databaseInstance.delete({
+      where: { container_id: containerId }
+    })
 
     revalidatePath("/dashboard")
     return { success: true }
@@ -201,8 +221,6 @@ export async function deleteDatabaseAction(containerId: string) {
     throw error
   }
 }
-
-// New helper function to get connection string for a database
 export async function getDatabaseConnectionString(databaseId: string): Promise<string> {
   const database = await prisma.databaseInstance.findUnique({
     where: { id: databaseId }
@@ -212,13 +230,16 @@ export async function getDatabaseConnectionString(databaseId: string): Promise<s
     throw new Error("Database not found")
   }
 
+  const envVars = database.envVars as Record<string, any>
+
   if (isMongoDB(database.image)) {
-    const envVars = database.envVars as Record<string, any>
-    if (envVars.REPLICA_MEMBERS) {
-      return `mongodb://${envVars.MONGO_INITDB_ROOT_USERNAME}:${envVars.MONGO_INITDB_ROOT_PASSWORD}@localhost:${database.port}/${envVars.MONGO_INITDB_DATABASE || 'admin'}?replicaSet=${envVars.REPLICA_SET_NAME}&authSource=admin`
-    }
+    const ports = envVars.SECONDARY_PORTS 
+      ? `,${process.env.SERVER_IP}:${envVars.SECONDARY_PORTS.join(',')}`
+      : ''
+    
+    return `mongodb://${envVars.MONGO_ROOT_USERNAME}:${envVars.MONGO_ROOT_PASSWORD}@${process.env.SERVER_IP}:${database.port}${ports}/admin?replicaSet=rs0&authSource=admin`
   }
 
   // Default connection string format for other databases
-  return `${database.type}://localhost:${database.port}`
+  return `${database.type}://${process.env.SERVER_IP}:${database.port}`
 }

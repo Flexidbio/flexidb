@@ -1,0 +1,77 @@
+services:
+  mongodb-primary:
+    image: mongo:latest
+    command: ["mongod", "--keyFile", "/data/mongodb-keyfile/keyfile", "--replSet", "rs0", "--bind_ip_all", "--auth"]
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USERNAME}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD}
+    volumes:
+      - type: bind
+        source: ./data/mongodb-keyfiles
+        target: /data/mongodb-keyfile
+        read_only: true
+      - type: bind
+        source: ./data/mongodb/primary
+        target: /data/db
+    ports:
+      - "${MONGO_PRIMARY_PORT}:27017"
+    networks:
+      - mongodb_network
+    user: "999:999"
+    healthcheck:
+      test: mongosh --eval 'db.runCommand("ping").ok' --quiet
+      interval: 10s
+      timeout: 10s
+      retries: 5
+      start_period: 40s
+
+  mongodb-secondary-1:
+    image: mongo:latest
+    command: ["mongod", "--keyFile", "/data/mongodb-keyfile/keyfile", "--replSet", "rs0", "--bind_ip_all", "--auth"]
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USERNAME}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD}
+    volumes:
+      - type: bind
+        source: ./data/mongodb-keyfiles
+        target: /data/mongodb-keyfile
+        read_only: true
+      - type: bind
+        source: ./data/mongodb/secondary1
+        target: /data/db
+    ports:
+      - "${MONGO_SECONDARY1_PORT}:27017"
+    networks:
+      - mongodb_network
+    user: "999:999"
+    depends_on:
+      mongodb-primary:
+        condition: service_healthy
+
+  mongodb-secondary-2:
+    image: mongo:latest
+    command: ["mongod", "--keyFile", "/data/mongodb-keyfile/keyfile", "--replSet", "rs0", "--bind_ip_all", "--auth"]
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USERNAME}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD}
+    volumes:
+      - type: bind
+        source: ./data/mongodb-keyfiles
+        target: /data/mongodb-keyfile
+        read_only: true
+      - type: bind
+        source: ./data/mongodb/secondary2
+        target: /data/db
+    ports:
+      - "${MONGO_SECONDARY2_PORT}:27017"
+    networks:
+      - mongodb_network
+    user: "999:999"
+    depends_on:
+      mongodb-primary:
+        condition: service_healthy
+
+networks:
+  mongodb_network:
+    name: ${MONGODB_NETWORK_NAME}
+    driver: bridge
