@@ -15,4 +15,4 @@ chmod 700 "$DATA_DIR"
 if [ "$(id -u)" = "0" ]; then
   chown -R 999:999 "$KEYFILE_DIR"
   chown -R 999:999 "$DATA_DIR"
-fi 
+fi

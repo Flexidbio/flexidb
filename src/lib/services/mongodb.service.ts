@@ -120,17 +120,12 @@ export class MongoDBService {
       ],
       HostConfig: {
         Binds: [
-          `${process.cwd()}/data/mongodb/${containerName}:/data/db`,
-          `${process.cwd()}/data/mongodb-keyfiles/${keyfilePath}:/data/mongodb-keyfile/keyfile:ro`
+          `mongodb_data:/data/db`,
+          `mongodb_keyfile:/data/mongodb-keyfile:ro`
         ],
         SecurityOpt: ["seccomp=unconfined"],
         Privileged: true,
         NetworkMode: networkName
-      },
-      NetworkingConfig: {
-        EndpointsConfig: {
-          [networkName]: {}
-        }
       }
     };
 

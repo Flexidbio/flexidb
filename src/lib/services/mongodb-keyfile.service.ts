@@ -34,7 +34,8 @@ export class MongoKeyfileService {
     await this.ensureKeyfileDirectory();
     
     const keyContent = randomBytes(756).toString('base64');
-    const keyfilePath = path.join(this.keyfilePath, `${replicaSetName}.key`);
+    const keyfileName = `${replicaSetName}.key`;
+    const keyfilePath = path.join(this.keyfilePath, keyfileName);
 
     try {
       // Write keyfile with newline
@@ -45,7 +46,7 @@ export class MongoKeyfileService {
       // Ensure the keyfile is owned by mongodb user (UID 999)
       await fs.chown(keyfilePath, 999, 999);
       
-      return keyfilePath;
+      return keyfileName;
     } catch (error) {
       console.error('Failed to generate keyfile:', error);
       throw error;
