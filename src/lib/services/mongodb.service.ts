@@ -104,7 +104,7 @@ export class MongoDBService {
     const containerConfig = {
       name: containerName,
       Image: MONGODB_CONFIG.image,
-      User: "999:999", // mongodb user in container
+      User: "mongodb",
       Env: [
         ...Object.entries(envVars).map(([key, value]) => `${key}=${value}`),
         `MONGO_REPLSET_NAME=${MONGODB_REPLICA_CONFIG.replica_set_name}`
@@ -116,31 +116,30 @@ export class MongoDBService {
         "--bind_ip_all",
         "--port", member.internal_port.toString(),
         "--oplogSize", "128",
-        "--wiredTigerCacheSizeGB", "1",
-        "--auth",
-        "--clusterAuthMode", "keyFile"
+        "--wiredTigerCacheSizeGB", "1"
       ],
       HostConfig: {
         Binds: [
           `${containerName}_data:/data/db`,
           `${keyfilePath}:/data/mongodb-keyfile/keyfile:ro`
         ],
-        // Add these volume permissions
-        SecurityOpt: ["seccomp=unconfined"],
-        Privileged: true
+        NetworkMode: networkName,
+        SecurityOpt: ["seccomp=unconfined"]
       }
     };
 
     try {
-      // Ensure proper permissions on keyfile directory
       await this.dockerClient.docker.createVolume({
         Name: `${containerName}_data`,
         Driver: 'local'
       });
 
-      // Pull image and create container
-      await this.dockerClient.pullImage(MONGODB_CONFIG.image);
       const container = await this.dockerClient.docker.createContainer(containerConfig);
+      
+      // Connect container to network
+      const network = this.dockerClient.docker.getNetwork(networkName);
+      await network.connect({ Container: container.id });
+      
       await container.start();
       
       return container;
