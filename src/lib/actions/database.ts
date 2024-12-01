@@ -8,6 +8,7 @@ import { MongoDBService } from "@/lib/services/mongodb.service"
 import { randomUUID } from "crypto"
 import { revalidatePath } from "next/cache"
 import { MongoComposeService } from "@/lib/services/mongodb-compose.service"
+import { cleanupMongoReplicaSet, createMongoReplicaSet } from "./mongo"
 
 const dockerClient = DockerClient.getInstance()
 const mongoService = MongoDBService.getInstance()
@@ -31,13 +32,13 @@ export async function createDatabaseAction(input: CreateContainerInput) {
   try {
     // Handle MongoDB differently using compose
     if (isMongoDB(input.image)) {
-      // Create MongoDB replica set using compose
-      const replicaSetInfo = await mongoComposeService.createReplicaSet(
+      // Create replica set first
+      const replicaSetInfo = await createMongoReplicaSet(
         containerId,
         input.port
       )
 
-      // Create database record for MongoDB
+      // Only create database record after successful replica set creation
       const dbContainer = await prisma.databaseInstance.create({
         data: {
           id: containerId,
@@ -64,10 +65,10 @@ export async function createDatabaseAction(input: CreateContainerInput) {
       return { success: true, container: dbContainer }
     }
 
-    // Original logic for non-MongoDB databases
+    // For non-MongoDB databases
     const safeName = `${input.name.toLowerCase().replace(/[^a-z0-9-]/g, '-')}-${containerId}`
-    // Create Docker container
-
+    
+    // First create and start the container
     const containerResponse = await dockerClient.createContainer(
       safeName,
       input.image,
@@ -75,8 +76,22 @@ export async function createDatabaseAction(input: CreateContainerInput) {
       input.port,
       input.internalPort,
       input.network
-    );
-    // Create database entry
+    )
+
+    if (!containerResponse?.data) {
+      throw new Error("Failed to create Docker container")
+    }
+
+    // Start container
+    await dockerClient.startContainer(containerResponse.data.id)
+
+    // Wait for container to be healthy
+    const containerInfo = await dockerClient.getContainerInfo(containerResponse.data.id)
+    if (containerInfo.state !== "running") {
+      throw new Error("Container failed to start properly")
+    }
+
+    // Only create database record after container is successfully running
     const dbContainer = await prisma.databaseInstance.create({
       data: {
         id: containerId,
@@ -85,61 +100,41 @@ export async function createDatabaseAction(input: CreateContainerInput) {
         image: input.image,
         port: input.port,
         internalPort: input.internalPort,
-        status: "creating",
-        container_id: containerId,
+        status: "running",
+        container_id: containerResponse.data.id,
         envVars: input.envVars,
         userId: session.user.id
       }
-    });
+    })
 
-    
-
-    if (!containerResponse?.data) {
-      throw new Error("Failed to create Docker container");
-    }
-
-    // Start container and update database
-    await dockerClient.startContainer(containerResponse.data.id);
-    
-    // Initialize MongoDB replica set if needed
-    if (input.image.includes('mongo')) {
-      await new Promise(resolve => setTimeout(resolve, 5000)); // Wait for MongoDB to start
-      
-      const config = {
-        _id: "rs0",
-        members: [{ _id: 0, host: "localhost:" + input.port }]
-      };
-
-      await dockerClient.docker.getContainer(containerResponse.data.id).exec({
-        Cmd: [
-          'mongo',
-          '--eval',
-          `rs.initiate(${JSON.stringify(config)})`
-        ],
-        AttachStdout: true,
-        AttachStderr: true
-      });
-    }
-
-    const containerInfo = await dockerClient.getContainerInfo(containerResponse.data.id);
-
-    const updatedContainer = await prisma.databaseInstance.update({
-      where: { id: dbContainer.id },
-      data: {
-        container_id: containerResponse.data.id,
-        status: "running",
-        port: input.port
-      }
-    });
-
-    revalidatePath("/dashboard");
-    return { success: true, container: updatedContainer };
+    revalidatePath("/dashboard")
+    return { success: true, container: dbContainer }
 
   } catch (error) {
-    console.error("Container creation failed:", error);
-    throw error;
+    console.error("Container creation failed:", error)
+    
+    // Cleanup containers if they were created but failed
+    try {
+      if (isMongoDB(input.image)) {
+        await cleanupMongoReplicaSet(containerId)
+      } else {
+        const containers = await dockerClient.docker.listContainers({
+          all: true,
+          filters: { name: [containerId] }
+        })
+        
+        for (const container of containers) {
+          await dockerClient.removeContainer(container.Id, true)
+        }
+      }
+    } catch (cleanupError) {
+      console.error("Cleanup failed:", cleanupError)
+    }
+
+    throw error
   }
 }
+
 export async function getDatabasesAction() {
   const session = await auth()
   if (!session?.user?.id) {
