@@ -305,11 +305,14 @@ start_services() {
     git stash pop
   fi
 
-  # Setup MongoDB requirements
-  echo -e "${YELLOW}Setting up MongoDB requirements...${NC}"
-  chmod +x ./scripts/setup-mongodb.sh
-  ./scripts/setup-mongodb.sh
-
+  
+# Setup MongoDB requirements
+  mkdir -p "${INSTALL_DIR}/data/mongodb-keyfiles"
+  mkdir -p "${INSTALL_DIR}/data/mongodb"
+  chmod 700 "${INSTALL_DIR}/data/mongodb-keyfiles"
+  chmod 700 "${INSTALL_DIR}/data/mongodb"
+  chown -R 999:999 "${INSTALL_DIR}/data/mongodb-keyfiles"
+  chown -R 999:999 "${INSTALL_DIR}/data/mongodb"
   echo -e "${YELLOW}Starting Docker services...${NC}"
   docker compose down -v 2>/dev/null || true
   docker compose up -d

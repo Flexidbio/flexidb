@@ -102,3 +102,9 @@ volumes:
       type: none
       device: ${PWD}/data/mongodb-keyfiles
       o: bind
+  mongodb_data:
+    driver: local
+    driver_opts:
+      type: none
+      device: ${PWD}/data/mongodb
+      o: bind

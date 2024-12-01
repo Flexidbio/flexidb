@@ -120,8 +120,8 @@ export class MongoDBService {
       ],
       HostConfig: {
         Binds: [
-          `${containerName}_data:/data/db`,
-          `${keyfilePath}:/data/mongodb-keyfile/keyfile:ro`
+          `${process.cwd()}/data/mongodb/${containerName}:/data/db`,
+          `${process.cwd()}/data/mongodb-keyfiles/${keyfilePath}:/data/mongodb-keyfile/keyfile:ro`
         ],
         SecurityOpt: ["seccomp=unconfined"],
         Privileged: true,
