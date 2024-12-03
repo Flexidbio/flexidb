@@ -255,19 +255,39 @@ export class MongoDBService {
 
   private async ensureDirectories(): Promise<void> {
     try {
-      // Use Docker exec to create and set permissions with root
-      await this.dockerClient.docker.getContainer('flexidb_app').exec({
-        Cmd: [
-          'sh', '-c',
-          `mkdir -p ${this.paths.dataDir} ${this.paths.keyfileDir} && ` +
-          `chmod 700 ${this.paths.dataDir} ${this.paths.keyfileDir} && ` +
-          `chown -R mongodb:mongodb ${this.paths.dataDir} ${this.paths.keyfileDir}`
-        ],
-        User: 'root'
-      });
-    } catch (error) {
+      // First try using fs to create directories directly
+      await fs.mkdir(this.paths.dataDir, { recursive: true });
+      await fs.mkdir(this.paths.keyfileDir, { recursive: true });
+      
+      try {
+        // Try to set permissions directly first
+        await fs.chmod(this.paths.dataDir, 0o700);
+        await fs.chmod(this.paths.keyfileDir, 0o700);
+        await fs.chown(this.paths.dataDir, 999, 999);
+        await fs.chown(this.paths.keyfileDir, 999, 999);
+      } catch (permError) {
+        console.warn('Failed to set permissions directly, falling back to Docker exec:', permError);
+        
+        // Fallback to Docker exec if direct permission changes fail
+        try {
+          await this.dockerClient.docker.getContainer('flexidb_app').exec({
+            Cmd: [
+              'sh', '-c',
+              `mkdir -p ${this.paths.dataDir} ${this.paths.keyfileDir} && ` +
+              `chmod 700 ${this.paths.dataDir} ${this.paths.keyfileDir} && ` +
+              `chown -R mongodb:mongodb ${this.paths.dataDir} ${this.paths.keyfileDir}`
+            ],
+            User: 'root'
+          });
+        } catch (dockerError) {
+          console.warn('Docker exec fallback failed:', dockerError);
+          // If both methods fail, throw the original permission error
+          throw permError;
+        }
+      }
+    } catch (error: unknown) {
       console.error('Failed to ensure directories:', error);
-      throw error;
+      throw new Error(`Failed to create or set permissions on MongoDB directories: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 }
