@@ -10,9 +10,13 @@ const execAsync = promisify(exec);
 export class MongoComposeService {
   private static instance: MongoComposeService;
   private keyfileService: MongoKeyfileService;
+  private composeDir: string;
 
   private constructor() {
     this.keyfileService = MongoKeyfileService.getInstance();
+    this.composeDir = process.env.MONGODB_BASE_DIR 
+      ? path.join(process.env.MONGODB_BASE_DIR, 'mongodb-compose')
+      : '/var/lib/flexidb/mongodb-compose';
   }
 
   public static getInstance(): MongoComposeService {
@@ -28,10 +32,8 @@ export class MongoComposeService {
     username: string,
     password: string
   ): Promise<string> {
-    const composeDir = path.join(process.cwd(), 'data', 'mongodb-compose');
-    await fs.mkdir(composeDir, { recursive: true });
+    await fs.mkdir(this.composeDir, { recursive: true });
 
-    // Create env file for compose
     const envContent = `
 MONGO_ROOT_USERNAME=${username}
 MONGO_ROOT_PASSWORD=${password}
@@ -39,15 +41,15 @@ MONGO_PRIMARY_PORT=${basePort}
 MONGO_SECONDARY1_PORT=${basePort + 1}
 MONGO_SECONDARY2_PORT=${basePort + 2}
 MONGODB_NETWORK_NAME=mongo_network_${instanceId}
+MONGODB_DATA_DIR=${process.env.MONGODB_DATA_DIR || '/var/lib/flexidb/mongodb'}
+MONGODB_KEYFILE_DIR=${process.env.MONGODB_KEYFILE_DIR || '/var/lib/flexidb/mongodb-keyfiles'}
     `.trim();
 
-    const envPath = path.join(composeDir, `${instanceId}.env`);
+    const envPath = path.join(this.composeDir, `${instanceId}.env`);
+    const composePath = path.join(this.composeDir, `${instanceId}-compose.yml`);
+    
     await fs.writeFile(envPath, envContent);
-
-    // Copy compose template
-    const templatePath = path.join(process.cwd(), 'templates', 'mongodb-compose.yml');
-    const composePath = path.join(composeDir, `${instanceId}-compose.yml`);
-    await fs.copyFile(templatePath, composePath);
+    await fs.copyFile(path.join(process.cwd(), 'templates', 'mongodb-compose.yml'), composePath);
 
     return composePath;
   }
@@ -91,7 +93,7 @@ MONGODB_NETWORK_NAME=mongo_network_${instanceId}
       const password = randomBytes(16).toString('hex');
 
       // Ensure directories exist
-      const dataDir = path.join(process.cwd(), 'data', 'mongodb');
+      const dataDir = process.env.MONGODB_DATA_DIR || '/var/lib/flexidb/mongodb';
       await fs.mkdir(path.join(dataDir, 'primary'), { recursive: true });
       await fs.mkdir(path.join(dataDir, 'secondary1'), { recursive: true });
       await fs.mkdir(path.join(dataDir, 'secondary2'), { recursive: true });
@@ -134,27 +136,22 @@ MONGODB_NETWORK_NAME=mongo_network_${instanceId}
 
   public async cleanup(instanceId: string): Promise<void> {
     try {
-      const composePath = path.join(
-        process.cwd(),
-        'data',
-        'mongodb-compose',
-        `${instanceId}-compose.yml`
-      );
+      const composePath = path.join(this.composeDir, `${instanceId}-compose.yml`);
+      const envPath = path.join(this.composeDir, `${instanceId}.env`);
 
-      // Stop and remove containers
-      await execAsync(`docker compose -f ${composePath} down -v`);
+      // Execute docker compose down from host perspective
+      await execAsync(`docker compose -f "${composePath}" --env-file "${envPath}" down -v`);
 
       // Clean up files
       await fs.unlink(composePath);
-      await fs.unlink(`${composePath}.env`);
+      await fs.unlink(envPath);
       await this.keyfileService.cleanup(instanceId);
 
-      // Clean up data directories
-      const dataDir = path.join(process.cwd(), 'data', 'mongodb');
-      await fs.rm(path.join(dataDir, 'primary'), { recursive: true, force: true });
-      await fs.rm(path.join(dataDir, 'secondary1'), { recursive: true, force: true });
-      await fs.rm(path.join(dataDir, 'secondary2'), { recursive: true, force: true });
-
+      // Clean up data directories using absolute paths
+      const dataDir = process.env.MONGODB_DATA_DIR || '/var/lib/flexidb/mongodb';
+      await fs.rm(path.join(dataDir, `primary_${instanceId}`), { recursive: true, force: true });
+      await fs.rm(path.join(dataDir, `secondary1_${instanceId}`), { recursive: true, force: true });
+      await fs.rm(path.join(dataDir, `secondary2_${instanceId}`), { recursive: true, force: true });
     } catch (error) {
       console.error('Failed to cleanup:', error);
       throw error;

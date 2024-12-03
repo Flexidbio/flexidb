@@ -2,6 +2,8 @@ import { DockerClient } from "@/lib/docker/client";
 import { MongoKeyfileService } from './mongodb-keyfile.service';
 import { randomBytes } from 'crypto';
 import { MongoReplicaSetConfig } from "@/lib/types";
+import * as fs from 'fs/promises';
+import * as path from 'path';
 
 export class MongoDBManager {
   private static instance: MongoDBManager;
@@ -253,14 +255,13 @@ private async createReplicaMember(
         console.error('Error removing network:', error);
       }
   
-      // Clean up directories
+      // Clean up directories using host paths
+      const dataDir = process.env.MONGODB_DATA_DIR || '/var/lib/flexidb/mongodb';
       const roles = ['primary', 'secondary1', 'secondary2'];
+      
       for (const role of roles) {
         try {
-          await this.dockerClient.docker.getContainer('flexidb_app').exec({
-            Cmd: ['rm', '-rf', `/var/lib/mongodb/${role}_${instanceId}`],
-            User: 'root'
-          });
+          await fs.rm(path.join(dataDir, `${role}_${instanceId}`), { recursive: true, force: true });
         } catch (error) {
           console.error(`Error removing ${role} directory:`, error);
         }
