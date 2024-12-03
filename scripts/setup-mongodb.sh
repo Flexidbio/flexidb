@@ -1,23 +1,59 @@
 #!/bin/bash
 set -e
 
-# Setup directories
-mkdir -p data/mongodb/{primary,secondary1,secondary2}
-mkdir -p data/mongodb-keyfiles
-mkdir -p data/mongodb-compose
-mkdir -p templates
+# MongoDB configuration
+MONGODB_BASE_DIR="/var/lib/flexidb"
+MONGODB_DATA_DIR="${MONGODB_BASE_DIR}/mongodb"
+MONGODB_KEYFILE_DIR="${MONGODB_BASE_DIR}/mongodb-keyfiles"
+MONGODB_USER="mongodb"
+MONGODB_GROUP="mongodb"
+MONGODB_UID=999
+MONGODB_GID=999
 
-# Copy compose template
-cp mongodb-compose.yml templates/
+echo "Setting up MongoDB directories and permissions..."
 
-# Set permissions
-chmod 700 data/mongodb/primary
-chmod 700 data/mongodb/secondary1
-chmod 700 data/mongodb/secondary2
-chmod 700 data/mongodb-keyfiles
+# Create mongodb user and group if they don't exist
+if ! getent group $MONGODB_GROUP >/dev/null; then
+    groupadd -r -g $MONGODB_GID $MONGODB_GROUP
+fi
 
-# Set ownership
-chown -R 999:999 data/mongodb
-chown -R 999:999 data/mongodb-keyfiles
+if ! getent passwd $MONGODB_USER >/dev/null; then
+    useradd -r -u $MONGODB_UID -g $MONGODB_GROUP -d $MONGODB_DATA_DIR -s /sbin/nologin $MONGODB_USER
+fi
 
-echo "MongoDB directory structure setup complete"
+# Create base directory
+mkdir -p $MONGODB_BASE_DIR
+
+# Create and set up data directory
+mkdir -p $MONGODB_DATA_DIR
+chmod 700 $MONGODB_DATA_DIR
+chown -R $MONGODB_UID:$MONGODB_GID $MONGODB_DATA_DIR
+
+# Create and set up keyfile directory
+mkdir -p $MONGODB_KEYFILE_DIR
+chmod 700 $MONGODB_KEYFILE_DIR
+chown -R $MONGODB_UID:$MONGODB_GID $MONGODB_KEYFILE_DIR
+
+# Create directory for replica set instances
+mkdir -p "${MONGODB_DATA_DIR}/rs0"
+chmod 700 "${MONGODB_DATA_DIR}/rs0"
+chown -R $MONGODB_UID:$MONGODB_GID "${MONGODB_DATA_DIR}/rs0"
+
+# Export paths
+cat > /etc/profile.d/mongodb-flexidb.sh << EOF
+export MONGODB_BASE_DIR="$MONGODB_BASE_DIR"
+export MONGODB_DATA_DIR="$MONGODB_DATA_DIR"
+export MONGODB_KEYFILE_DIR="$MONGODB_KEYFILE_DIR"
+EOF
+
+# Add to current session
+export MONGODB_BASE_DIR="$MONGODB_BASE_DIR"
+export MONGODB_DATA_DIR="$MONGODB_DATA_DIR"
+export MONGODB_KEYFILE_DIR="$MONGODB_KEYFILE_DIR"
+
+echo "MongoDB directories set up successfully:"
+echo "Base directory: $MONGODB_BASE_DIR"
+echo "Data directory: $MONGODB_DATA_DIR"
+echo "Keyfile directory: $MONGODB_KEYFILE_DIR"
+echo "Owner: $MONGODB_USER:$MONGODB_GROUP ($MONGODB_UID:$MONGODB_GID)"
+echo "Permissions: 700 (drwx------)"

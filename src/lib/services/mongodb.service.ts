@@ -1,4 +1,3 @@
-// src/lib/services/mongodb.service.ts
 
 import { DockerClient } from "@/lib/docker/client";
 import { 
@@ -10,17 +9,25 @@ import {
 } from "@/lib/config/mongodb.config";
 import { randomUUID } from "crypto";
 import { prisma } from "@/lib/db/prisma";
-import { MongoKeyfileService } from "./mongodb-keyfile.service";
+import path from 'path';
+import fs from 'fs/promises';
 
-// The MongoDBService class manages MongoDB replica set creation and management
+interface MongoDBPaths {
+  dataDir: string;
+  keyfileDir: string;
+}
+
 export class MongoDBService {
   private static instance: MongoDBService;
   private dockerClient: DockerClient;
-  private keyfileService: MongoKeyfileService;
+  private paths: MongoDBPaths;
 
   private constructor() {
     this.dockerClient = DockerClient.getInstance();
-    this.keyfileService = MongoKeyfileService.getInstance();
+    this.paths = {
+      dataDir: process.env.MONGODB_DATA_DIR || '/var/lib/mongodb',
+      keyfileDir: process.env.MONGODB_KEYFILE_DIR || '/etc/mongodb/keyfile'
+    };
   }
 
   public static getInstance(): MongoDBService {
@@ -30,114 +37,85 @@ export class MongoDBService {
     return MongoDBService.instance;
   }
 
-  // Enhanced container health check that verifies MongoDB is actually responding
-  private async waitForContainer(containerId: string, timeout = 120000): Promise<boolean> {
-    console.log(`Starting to wait for container ${containerId}`);
-    const startTime = Date.now();
+  private async generateKeyfile(instanceId: string): Promise<string> {
+    const keyContent = require('crypto').randomBytes(756).toString('base64');
+    const keyfilePath = path.join(this.paths.keyfileDir, `${instanceId}.key`);
     
-    const container = this.dockerClient.docker.getContainer(containerId);
+    await fs.mkdir(this.paths.keyfileDir, { recursive: true });
+    await fs.writeFile(keyfilePath, keyContent);
+    await fs.chmod(keyfilePath, 0o400);
     
-    while (Date.now() - startTime < timeout) {
-      try {
-        const info = await container.inspect();
-        console.log(`Container state: ${info.State.Status}`);
-  
-        if (info.State.Status === 'running') {
-          // Add delay before checking MongoDB connection
-          await new Promise(resolve => setTimeout(resolve, 5000));
-          
-          try {
-            const exec = await container.exec({
-              Cmd: [
-                'mongosh',
-                '--quiet',
-                '--eval',
-                'db.adminCommand({ ping: 1 })'
-              ],
-              AttachStdout: true,
-              AttachStderr: true
-            });
-  
-            const stream = await exec.start({});
-            let output = '';
-  
-            await new Promise((resolve, reject) => {
-              stream.on('data', (chunk: Buffer) => {
-                output += chunk.toString();
-              });
-              stream.on('end', resolve);
-              stream.on('error', reject);
-            });
-  
-            if (output.includes('"ok" : 1')) {
-              console.log('MongoDB is accepting connections');
-              return true;
-            }
-          } catch (cmdError) {
-            console.log('Waiting for MongoDB to initialize...');
-          }
-        } else if (info.State.Status === 'exited' || info.State.Status === 'dead') {
-          const logs = await container.logs({ stdout: true, stderr: true });
-          console.error('Container failed to start. Logs:', logs.toString());
-          return false;
-        }
-      } catch (error) {
-        console.error('Error checking container:', error);
-      }
-
-      await new Promise(resolve => setTimeout(resolve, 2000));
+    // Set ownership to mongodb user (UID 999)
+    try {
+      await fs.chown(keyfilePath, 999, 999);
+    } catch (error) {
+      console.warn('Failed to set keyfile ownership, container might need to handle this');
     }
-  
-    return false;
+
+    return keyfilePath;
   }
 
-  // Creates a single MongoDB container with proper security configuration
-  private async createMongoContainer(
+  private async setupDataDirectory(instanceId: string): Promise<string> {
+    const dataPath = path.join(this.paths.dataDir, instanceId);
+    await fs.mkdir(dataPath, { recursive: true });
+    
+    try {
+      await fs.chmod(dataPath, 0o700);
+      await fs.chown(dataPath, 999, 999);
+    } catch (error) {
+      console.warn('Failed to set data directory permissions, container might need to handle this');
+    }
+
+    return dataPath;
+  }
+
+  private async createContainer(
     containerName: string,
     member: MongoNodeConfig,
     networkName: string,
-    envVars: Record<string, string>,
-    keyfilePath: string
+    keyfilePath: string,
+    dataPath: string,
+    envVars: Record<string, string>
   ): Promise<any> {
     const containerConfig = {
       name: containerName,
       Image: MONGODB_CONFIG.image,
-      User: "mongodb", // Use mongodb user
-      Env: [
-        ...Object.entries(envVars).map(([key, value]) => `${key}=${value}`),
-        `MONGO_REPLSET_NAME=${MONGODB_REPLICA_CONFIG.replica_set_name}`
-      ],
       Cmd: [
         "mongod",
         "--replSet", MONGODB_REPLICA_CONFIG.replica_set_name,
-        "--keyFile", "/data/mongodb-keyfile/keyfile",
-        "--auth",
-        "--bind_ip_all" 
+        "--keyFile", "/mongodb/keyfile/keyfile",
+        "--bind_ip_all",
+        "--port", member.internal_port.toString()
       ],
+      Env: Object.entries(envVars).map(([key, value]) => `${key}=${value}`),
+      ExposedPorts: {
+        [`${member.internal_port}/tcp`]: {}
+      },
       HostConfig: {
         Binds: [
-          `${keyfilePath}:/data/mongodb-keyfile/keyfile:ro`,
-          `mongodb_data:/data/db`
+          `${dataPath}:/data/db`,
+          `${keyfilePath}:/mongodb/keyfile/keyfile:ro`
         ],
-        NetworkMode: networkName,
-        SecurityOpt: ["seccomp=unconfined"]
+        PortBindings: {
+          [`${member.internal_port}/tcp`]: [
+            { HostPort: member.external_port.toString() }
+          ]
+        },
+        NetworkMode: networkName
+      },
+      NetworkingConfig: {
+        EndpointsConfig: {
+          [networkName]: {
+            Aliases: [member.node_name]
+          }
+        }
       }
     };
-  
-    try {
-      await this.dockerClient.docker.createVolume({
-        Name: `${containerName}_data`,
-        Driver: 'local'
-      });
 
+    try {
+      await this.dockerClient.pullImage(MONGODB_CONFIG.image);
       const container = await this.dockerClient.docker.createContainer(containerConfig);
-      
-      // Connect container to network
-      const network = this.dockerClient.docker.getNetwork(networkName);
-      await network.connect({ Container: container.id });
-      
       await container.start();
-      
       return container;
     } catch (error) {
       console.error(`Failed to create/start container ${containerName}:`, error);
@@ -145,133 +123,41 @@ export class MongoDBService {
     }
   }
 
-  // Creates an isolated network for the replica set
-  private async createReplicaSetNetwork(instanceId: string): Promise<string> {
-    const networkName = `mongo_network_${instanceId}`;
-    try {
-      await this.dockerClient.docker.createNetwork({
-        Name: networkName,
-        Driver: "bridge",
-        Options: {
-          "com.docker.network.bridge.enable_icc": "true"
-        }
-      });
-      return networkName;
-    } catch (error) {
-      console.error("Failed to create network:", error);
-      throw error;
-    }
-  }
-
-  // Initializes the replica set on the primary node
-  private async initializeReplicaSet(
-    primaryContainerId: string,
-    members: MongoNodeConfig[]
-  ): Promise<void> {
-    console.log('Starting replica set initialization...');
-    
-    const isReady = await this.waitForContainer(primaryContainerId);
-    if (!isReady) {
-      const container = this.dockerClient.docker.getContainer(primaryContainerId);
-      const logs = await container.logs({ stdout: true, stderr: true });
-      console.error('Container logs:', logs.toString());
-      throw new Error("Primary container failed to start properly");
-    }
-
-    const initCommand = generateReplicaSetInitCommand(members);
-    console.log('Initializing replica set with command:', initCommand);
-
-    const container = this.dockerClient.docker.getContainer(primaryContainerId);
-
-    // Verify MongoDB is responding before initialization
-    try {
-      const pingCommand = 'db.adminCommand({ ping: 1 })';
-      const pingExec = await container.exec({
-        Cmd: ['mongosh', '--eval', pingCommand],
-        AttachStdout: true,
-        AttachStderr: true
-      });
-
-      await new Promise((resolve, reject) => {
-        pingExec.start({}, (err, stream) => {
-          if (err) reject(err);
-          stream?.on('data', data => console.log('Ping output:', data.toString()));
-          stream?.on('end', resolve);
-          stream?.on('error', reject);
-        });
-      });
-    } catch (error) {
-      console.error('MongoDB ping failed:', error);
-      throw new Error('MongoDB is not responding to commands');
-    }
-
-    // Initialize the replica set
-    try {
-      const exec = await container.exec({
-        Cmd: ['mongosh', '--eval', initCommand],
-        AttachStdout: true,
-        AttachStderr: true
-      });
-
-      const output = await new Promise<string>((resolve, reject) => {
-        exec.start({}, (err, stream) => {
-          if (err) {
-            reject(err);
-            return;
-          }
-          let output = '';
-          stream?.on('data', chunk => {
-            const data = chunk.toString();
-            console.log('Initialization output:', data);
-            output += data;
-          });
-          stream?.on('end', () => resolve(output));
-          stream?.on('error', reject);
-        });
-      });
-
-      if (!output.includes('"ok" : 1')) {
-        console.error('Replica set initialization failed. Output:', output);
-        throw new Error('Failed to initialize replica set');
-      }
-
-      console.log('Replica set initialized successfully');
-    } catch (error) {
-      console.error('Error during replica set initialization:', error);
-      throw error;
-    }
-  }
-
-  // Main method to create a MongoDB replica set
-  public async createMongoDBReplicaSet(
+  // Main method to create MongoDB replica set
+  public async createReplicaSet(
     name: string,
     userId: string,
     envVars: Record<string, string>,
-    baseExternalPort: number
+    basePort: number
   ): Promise<any> {
     const instanceId = randomUUID();
-    const networkName = await this.createReplicaSetNetwork(instanceId);
-    let keyfilePath: string | undefined;
-
+    const networkName = `mongo_network_${instanceId}`;
+    
     try {
-      // Generate security keyfile for the replica set
-      keyfilePath = await this.keyfileService.generateKeyfile(instanceId);
+      // Create network
+      await this.dockerClient.docker.createNetwork({
+        Name: networkName,
+        Driver: "bridge"
+      });
 
-      const replicaMembers = generateReplicaSetMembers(
-        baseExternalPort,
-        MONGODB_REPLICA_CONFIG.replicas
-      );
+      // Setup directories and keyfile
+      const keyfilePath = await this.generateKeyfile(instanceId);
+      const dataPath = await this.setupDataDirectory(instanceId);
 
-      // Create containers for each replica member
+      // Generate replica set member configs
+      const members = generateReplicaSetMembers(basePort, MONGODB_REPLICA_CONFIG.replicas);
+      
+      // Create containers
       const containers = [];
-      for (const member of replicaMembers) {
+      for (const member of members) {
         const containerName = `${name}-${member.node_name}-${instanceId}`;
-        const container = await this.createMongoContainer(
+        const container = await this.createContainer(
           containerName,
           member,
           networkName,
-          envVars,
-          keyfilePath
+          keyfilePath,
+          path.join(dataPath, member.node_name),
+          envVars
         );
         containers.push(container);
       }
@@ -283,85 +169,85 @@ export class MongoDBService {
           name,
           type: "mongodb",
           image: MONGODB_CONFIG.image,
-          port: replicaMembers[0].external_port,
+          port: members[0].external_port,
           internalPort: MONGODB_CONFIG.internal_port,
           status: "initializing",
           container_id: containers[0].id,
           envVars: {
             ...envVars,
             REPLICA_SET_NAME: MONGODB_REPLICA_CONFIG.replica_set_name,
-            REPLICA_MEMBERS: JSON.stringify(replicaMembers)
+            REPLICA_MEMBERS: JSON.stringify(members)
           },
           userId
         }
       });
 
-      // Initialize the replica set configuration
-      await this.initializeReplicaSet(containers[0].id, replicaMembers);
+      // Initialize replica set
+      await this.initializeReplicaSet(containers[0].id, members);
 
-      // Update instance status to running
-      const updatedInstance = await prisma.databaseInstance.update({
-        where: { id: instanceId },
-        data: { 
-          status: "running",
-        }
-      });
-
-      return updatedInstance;
-
+      return dbInstance;
     } catch (error) {
-      console.error("Failed to create MongoDB replica set:", error);
-      // Clean up all resources on failure
       await this.cleanup(networkName, instanceId);
-      if (keyfilePath) {
-        await this.keyfileService.cleanup(instanceId);
-      }
       throw error;
     }
   }
 
-  // Cleanup method to remove all resources associated with a replica set
+  private async initializeReplicaSet(primaryContainerId: string, members: MongoNodeConfig[]): Promise<void> {
+    const initCommand = generateReplicaSetInitCommand(members);
+    const container = this.dockerClient.docker.getContainer(primaryContainerId);
+
+    // Wait for MongoDB to be ready
+    await new Promise(resolve => setTimeout(resolve, 10000));
+
+    const exec = await container.exec({
+      Cmd: ['mongosh', '--eval', initCommand],
+      AttachStdout: true,
+      AttachStderr: true
+    });
+
+    const stream = await exec.start({});
+    await new Promise((resolve, reject) => {
+      let output = '';
+      stream.on('data', (chunk: Buffer) => {
+        output += chunk.toString();
+      });
+      stream.on('end', () => {
+        if (output.includes('"ok" : 1')) {
+          resolve(output);
+        } else {
+          reject(new Error(`Replica set initialization failed: ${output}`));
+        }
+      });
+      stream.on('error', reject);
+    });
+  }
+
   private async cleanup(networkName: string, instanceId: string): Promise<void> {
     try {
-      // Remove all containers in the network
+      // Remove containers
       const containers = await this.dockerClient.docker.listContainers({
         all: true,
         filters: { network: [networkName] }
       });
 
-      await Promise.all(
-        containers.map(container =>
-          this.dockerClient.removeContainer(container.Id, true)
-        )
-      );
+      for (const container of containers) {
+        await this.dockerClient.removeContainer(container.Id, true);
+      }
 
-      // Remove the network
+      // Remove network
       const network = await this.dockerClient.docker.getNetwork(networkName);
       await network.remove();
 
+      // Cleanup directories
+      await fs.rm(path.join(this.paths.dataDir, instanceId), { recursive: true, force: true });
+      await fs.unlink(path.join(this.paths.keyfileDir, `${instanceId}.key`));
+
       // Remove database record
-      await prisma.databaseInstance.deleteMany({
+      await prisma.databaseInstance.delete({
         where: { id: instanceId }
       });
-
-      // Clean up keyfile
-      await this.keyfileService.cleanup(instanceId);
     } catch (error) {
-      console.error("Cleanup error:", error);
+      console.error('Cleanup error:', error);
     }
-  }
-
-  // Method to remove an entire replica set
-  public async removeReplicaSet(instanceId: string): Promise<void> {
-    const instance = await prisma.databaseInstance.findUnique({
-      where: { id: instanceId }
-    });
-
-    if (!instance || instance.type !== "mongodb") {
-      throw new Error("Invalid MongoDB instance");
-    }
-
-    const networkName = `mongo_network_${instanceId}`;
-    await this.cleanup(networkName, instanceId);
   }
 }

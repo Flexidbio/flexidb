@@ -303,20 +303,33 @@ start_services() {
   if git stash list | grep -q 'stash@{0}'; then
     echo -e "${YELLOW}Reapplying local changes...${NC}"
     git stash pop
-  fi
+  fi 
 
   
-# Setup MongoDB requirements
-  mkdir -p "${INSTALL_DIR}/data/mongodb-keyfiles"
-  mkdir -p "${INSTALL_DIR}/data/mongodb"
-  chmod 700 "${INSTALL_DIR}/data/mongodb-keyfiles"
-  chmod 700 "${INSTALL_DIR}/data/mongodb"
-  chown -R 999:999 "${INSTALL_DIR}/data/mongodb-keyfiles"
-  chown -R 999:999 "${INSTALL_DIR}/data/mongodb"
+
   echo -e "${YELLOW}Starting Docker services...${NC}"
   docker compose down -v 2>/dev/null || true
   docker compose up -d
   echo -e "${GREEN}Services started${NC}"
+}
+
+setup_mongodb() {
+    echo -e "${YELLOW}Setting up MongoDB directories...${NC}"
+    
+    # Execute the MongoDB setup script from the cloned repository
+    chmod +x "${INSTALL_DIR}/scripts/setup-mongodb.sh"
+    "${INSTALL_DIR}/scripts/setup-mongodb.sh"
+    
+    # Add MongoDB environment variables to .env file
+    cat >> "${INSTALL_DIR}/.env" << EOF
+
+# MongoDB Configuration
+MONGODB_BASE_DIR=/var/lib/flexidb
+MONGODB_DATA_DIR=/var/lib/flexidb/mongodb
+MONGODB_KEYFILE_DIR=/var/lib/flexidb/mongodb-keyfiles
+EOF
+    
+    echo -e "${GREEN}MongoDB setup complete${NC}"
 }
 
 # Function to wait for services
@@ -464,7 +477,7 @@ main() {
   # 7. Services
   start_services
   wait_for_services
-
+  setup_mongodb
   # 8. Database setup
   setup_database
 
