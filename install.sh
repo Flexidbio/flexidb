@@ -461,6 +461,7 @@ main() {
   # 3. Repository and environment setup
   setup_repository
   create_env_file
+  setup_mongodb
   verify_environment  # Moved after create_env_file
 
   # 4. Export environment variables
@@ -477,7 +478,7 @@ main() {
   # 7. Services
   start_services
   wait_for_services
-  setup_mongodb
+  
   # 8. Database setup
   setup_database
 
