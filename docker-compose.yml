@@ -91,8 +91,6 @@ services:
       - "traefik.http.routers.app-ip.service=app-service"
       - "traefik.http.services.app-service.loadbalancer.server.port=3000"
     user: "1000:1000"
-    group:
-      - "999"
 
 networks:
   flexidb_network:
