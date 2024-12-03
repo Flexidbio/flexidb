@@ -4,16 +4,19 @@ import path from 'path';
 import fs from 'fs/promises';
 import { MongoKeyfileService } from './mongodb-keyfile.service';
 import { randomBytes } from 'crypto';
+import { DockerClient } from '@/lib/docker/client';
 
 const execAsync = promisify(exec);
 
 export class MongoComposeService {
   private static instance: MongoComposeService;
   private keyfileService: MongoKeyfileService;
+  private dockerClient: DockerClient;
   private composeDir: string;
 
   private constructor() {
     this.keyfileService = MongoKeyfileService.getInstance();
+    this.dockerClient = DockerClient.getInstance();
     this.composeDir = process.env.MONGODB_BASE_DIR 
       ? path.join(process.env.MONGODB_BASE_DIR, 'mongodb-compose')
       : '/var/lib/flexidb/mongodb-compose';
@@ -139,19 +142,39 @@ MONGODB_KEYFILE_DIR=${process.env.MONGODB_KEYFILE_DIR || '/var/lib/flexidb/mongo
       const composePath = path.join(this.composeDir, `${instanceId}-compose.yml`);
       const envPath = path.join(this.composeDir, `${instanceId}.env`);
 
-      // Execute docker compose down from host perspective
-      await execAsync(`docker compose -f "${composePath}" --env-file "${envPath}" down -v`);
+      // Use Docker API instead of shell command
+      const containers = await this.dockerClient.docker.listContainers({
+        all: true,
+        filters: {
+          label: [`mongodb.replica=${instanceId}`]
+        }
+      });
 
-      // Clean up files
-      await fs.unlink(composePath);
-      await fs.unlink(envPath);
+      await Promise.all(
+        containers.map(container =>
+          this.dockerClient.removeContainer(container.Id, true)
+        )
+      );
+
+      // Clean up files using Docker exec
+      await this.dockerClient.docker.getContainer('flexidb_app').exec({
+        Cmd: ['rm', '-rf', composePath, envPath],
+        User: 'root'
+      });
+
       await this.keyfileService.cleanup(instanceId);
 
-      // Clean up data directories using absolute paths
+      // Clean up data directories using Docker exec
       const dataDir = process.env.MONGODB_DATA_DIR || '/var/lib/flexidb/mongodb';
-      await fs.rm(path.join(dataDir, `primary_${instanceId}`), { recursive: true, force: true });
-      await fs.rm(path.join(dataDir, `secondary1_${instanceId}`), { recursive: true, force: true });
-      await fs.rm(path.join(dataDir, `secondary2_${instanceId}`), { recursive: true, force: true });
+      await this.dockerClient.docker.getContainer('flexidb_app').exec({
+        Cmd: [
+          'rm', '-rf',
+          path.join(dataDir, `primary_${instanceId}`),
+          path.join(dataDir, `secondary1_${instanceId}`),
+          path.join(dataDir, `secondary2_${instanceId}`)
+        ],
+        User: 'root'
+      });
     } catch (error) {
       console.error('Failed to cleanup:', error);
       throw error;

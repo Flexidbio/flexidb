@@ -133,6 +133,9 @@ export class MongoDBService {
     const networkName = `mongo_network_${instanceId}`;
     
     try {
+      // Ensure required directories exist with proper permissions
+      await this.ensureDirectories();
+
       // Create network
       await this.dockerClient.docker.createNetwork({
         Name: networkName,
@@ -247,6 +250,24 @@ export class MongoDBService {
       });
     } catch (error) {
       console.error('Cleanup error:', error);
+    }
+  }
+
+  private async ensureDirectories(): Promise<void> {
+    try {
+      // Use Docker exec to create and set permissions with root
+      await this.dockerClient.docker.getContainer('flexidb_app').exec({
+        Cmd: [
+          'sh', '-c',
+          `mkdir -p ${this.paths.dataDir} ${this.paths.keyfileDir} && ` +
+          `chmod 700 ${this.paths.dataDir} ${this.paths.keyfileDir} && ` +
+          `chown -R mongodb:mongodb ${this.paths.dataDir} ${this.paths.keyfileDir}`
+        ],
+        User: 'root'
+      });
+    } catch (error) {
+      console.error('Failed to ensure directories:', error);
+      throw error;
     }
   }
 }
