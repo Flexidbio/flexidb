@@ -9,7 +9,7 @@ export class MongoKeyfileService {
   private keyfilePath: string;
 
   private constructor() {
-    this.keyfilePath = path.join(process.cwd(), 'data', 'mongodb-keyfiles');
+    this.keyfilePath = process.env.MONGODB_KEYFILE_DIR || '/var/lib/flexidb/mongodb-keyfiles';
   }
 
   public static getInstance(): MongoKeyfileService {

@@ -67,9 +67,9 @@ services:
       - POSTGRES_USER=${POSTGRES_USER:-postgres}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-postgres}
       - POSTGRES_DB=${POSTGRES_DB:-flexidb}
-      - MONGODB_BASE_DIR=${MONGODB_BASE_DIR}
-      - MONGODB_DATA_DIR=${MONGODB_DATA_DIR}
-      - MONGODB_KEYFILE_DIR=${MONGODB_KEYFILE_DIR}
+      - MONGODB_BASE_DIR=/var/lib/flexidb
+      - MONGODB_DATA_DIR=/var/lib/flexidb/mongodb
+      - MONGODB_KEYFILE_DIR=/var/lib/flexidb/mongodb-keyfiles
     env_file: .env
     ports:
       - "3000:3000"

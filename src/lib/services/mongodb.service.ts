@@ -1,4 +1,3 @@
-
 import { DockerClient } from "@/lib/docker/client";
 import { 
   MONGODB_CONFIG,
@@ -25,8 +24,8 @@ export class MongoDBService {
   private constructor() {
     this.dockerClient = DockerClient.getInstance();
     this.paths = {
-      dataDir: process.env.MONGODB_DATA_DIR || '/var/lib/mongodb',
-      keyfileDir: process.env.MONGODB_KEYFILE_DIR || '/etc/mongodb/keyfile'
+      dataDir: process.env.MONGODB_DATA_DIR || '/var/lib/flexidb/mongodb',
+      keyfileDir: process.env.MONGODB_KEYFILE_DIR || '/var/lib/flexidb/mongodb-keyfiles'
     };
   }
 

@@ -9,11 +9,11 @@ services:
       MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD}
     volumes:
       - type: bind
-        source: ./data/mongodb-keyfiles
+        source: ${MONGODB_KEYFILE_DIR}
         target: /data/mongodb-keyfile
         read_only: true
       - type: bind
-        source: ./data/mongodb/primary
+        source: ${MONGODB_DATA_DIR}/primary
         target: /data/db
     ports:
       - "${MONGO_PRIMARY_PORT}:27017"
@@ -35,11 +35,11 @@ services:
       MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD}
     volumes:
       - type: bind
-        source: ./data/mongodb-keyfiles
+        source: ${MONGODB_KEYFILE_DIR}
         target: /data/mongodb-keyfile
         read_only: true
       - type: bind
-        source: ./data/mongodb/secondary1
+        source: ${MONGODB_DATA_DIR}/secondary1
         target: /data/db
     ports:
       - "${MONGO_SECONDARY1_PORT}:27017"
@@ -58,11 +58,11 @@ services:
       MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD}
     volumes:
       - type: bind
-        source: ./data/mongodb-keyfiles
+        source: ${MONGODB_KEYFILE_DIR}
         target: /data/mongodb-keyfile
         read_only: true
       - type: bind
-        source: ./data/mongodb/secondary2
+        source: ${MONGODB_DATA_DIR}/secondary2
         target: /data/db
     ports:
       - "${MONGO_SECONDARY2_PORT}:27017"
