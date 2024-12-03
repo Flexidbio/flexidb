@@ -264,7 +264,7 @@ setup_repository() {
     fi
     
     # Clone repository as the actual user
-    sudo -u "$ACTUAL_USER" git clone https://github.com/Flexidbio/flexidb.git "$INSTALL_DIR"
+    sudo -u "$ACTUAL_USER" git clone -b feature/mongo-replica-set https://github.com/Flexidbio/flexidb.git "$INSTALL_DIR"
     
     if [ $? -ne 0 ]; then
         echo -e "${RED}Failed to clone repository${NC}"
@@ -294,10 +294,7 @@ start_services() {
   # Checkout the branch
   echo -e "${YELLOW}Checking out feature branch...${NC}"
   git fetch origin
-  git checkout feature/mongo-replica-set || {
-    echo -e "${RED}Failed to checkout branch. Creating new tracking branch...${NC}"
-    git checkout -b feature/mongo-replica-set origin/feature/mongo-replica-set
-  }
+  git checkout feature/mongo-replica-set 
 
   # Pop the stashed changes if any were stashed
   if git stash list | grep -q 'stash@{0}'; then
