@@ -1,71 +1,49 @@
-FROM oven/bun:1 AS base
+FROM oven/bun:1-alpine AS base
 WORKDIR /app
 
-# Install only the essential system dependencies
-RUN apt-get update && apt-get install -y \
-    build-essential \
-    python3 \
-    python3-pip \
-    make \
-    g++ \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
+# Install only essential build dependencies
+RUN apk add --no-cache python3 make g++
 
-# Install dependencies only when needed
-FROM base AS deps
+# Install dependencies and generate Prisma client
 COPY package.json bun.lockb ./
-RUN bun install
-
-# Copy Prisma schema and generate client
 COPY prisma ./prisma/
-RUN bunx prisma generate
 
-# Rebuild the source code only when needed
-FROM base AS builder
-WORKDIR /app
-COPY --from=deps /app/node_modules ./node_modules
-COPY --from=deps /app/node_modules/.prisma ./node_modules/.prisma
+RUN bun install --frozen-lockfile \
+    && bunx prisma generate \
+    && rm -rf /root/.bun-cache
+
+# Build the application
 COPY . .
-
-ENV NEXT_TELEMETRY_DISABLED 1
-ENV NODE_ENV production
+ENV NEXT_TELEMETRY_DISABLED=1 \
+    NODE_ENV=production
 
 RUN bun run build
 
-# Production image, copy all files and run next
-FROM base AS runner
+# Production stage
+FROM oven/bun:1-alpine AS runner
 WORKDIR /app
 
-ENV NODE_ENV production
-ENV NEXT_TELEMETRY_DISABLED 1
+ENV NODE_ENV=production \
+    NEXT_TELEMETRY_DISABLED=1 \
+    PORT=3000 \
+    HOSTNAME="0.0.0.0"
 
-# Create non-root user and setup cache directories
-RUN addgroup --system --gid 1001 nodejs && \
-    adduser --system --uid 1001 nextjs && \
-    addgroup --system --gid 998 docker && \
+# Create non-root user and required groups
+RUN addgroup -S -g 1001 nodejs && \
+    adduser -S -u 1001 -G nodejs nextjs && \
+    addgroup -S -g 998 docker && \
     adduser nextjs docker && \
-    mkdir -p .next/cache/fetch-cache && \
-    mkdir -p .next/cache/images && \
-    mkdir -p .next/cache/fetch && \
+    mkdir -p .next/cache/{fetch-cache,images,fetch} && \
     chown -R nextjs:nodejs .next
 
-# Copy built files
-COPY --from=builder --chown=nextjs:nodejs /app/public ./public
-COPY --from=builder --chown=nextjs:nodejs /app/.next ./.next
-COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
-COPY --from=builder --chown=nextjs:nodejs /app/package.json ./package.json
-COPY --from=builder --chown=nextjs:nodejs /app/bun.lockb ./bun.lockb
-COPY --from=builder --chown=nextjs:nodejs /app/node_modules ./node_modules
+# Copy only necessary files
+COPY --from=base --chown=nextjs:nodejs /app/public ./public
+COPY --from=base --chown=nextjs:nodejs /app/.next ./.next
+COPY --from=base --chown=nextjs:nodejs /app/package.json ./package.json
+COPY --from=base --chown=nextjs:nodejs /app/bun.lockb ./bun.lockb
+COPY --from=base --chown=nextjs:nodejs /app/node_modules ./node_modules
 
-# Set correct permissions
-RUN chown -R nextjs:nodejs /app
-
-# Switch to non-root user
 USER nextjs
-
 EXPOSE 3000
-
-ENV PORT 3000
-ENV HOSTNAME "0.0.0.0"
 
 CMD ["bun", "run", "start"]
