@@ -42,6 +42,7 @@ COPY --from=base --chown=nextjs:nodejs /app/.next ./.next
 COPY --from=base --chown=nextjs:nodejs /app/package.json ./package.json
 COPY --from=base --chown=nextjs:nodejs /app/bun.lockb ./bun.lockb
 COPY --from=base --chown=nextjs:nodejs /app/node_modules ./node_modules
+COPY --from=base --chown=nextjs:nodejs /app/prisma ./prisma
 
 USER nextjs
 EXPOSE 3000
