@@ -12,21 +12,23 @@ export default async function HomePage() {
   }
 
   return (
-    <div className="container flex h-screen flex-col items-center justify-center space-y-4">
-      <div className="space-y-2 text-center">
-        <h1 className="text-3xl font-bold">Welcome to FlexiDB</h1>
-        <p className="text-muted-foreground">
-          Sign in to manage your databases
-        </p>
+    <main className="flex min-h-screen items-center justify-center p-4">
+      <div className="flex flex-col items-center justify-center">
+        <div className="space-y-2 text-center">
+          <h1 className="text-3xl font-bold">Welcome to FlexiDB</h1>
+          <p className="text-muted-foreground">
+            Sign in to manage your databases
+          </p>
+        </div>
+        <div className="flex gap-2 mt-4">
+          <Button asChild>
+            <Link href="/auth/login">Sign In</Link>
+          </Button>
+          <Button asChild variant="outline">
+            <Link href="/auth/signup">Create Account</Link>
+          </Button>
+        </div>
       </div>
-      <div className="flex gap-2">
-        <Button asChild>
-          <Link href="/auth/login">Sign In</Link>
-        </Button>
-        <Button asChild variant="outline">
-          <Link href="/auth/signup">Create Account</Link>
-        </Button>
-      </div>
-    </div>
+    </main>
   );
 }

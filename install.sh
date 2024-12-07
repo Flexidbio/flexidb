@@ -37,27 +37,46 @@ generate_password() {
 }
 
 # Function to get public IP address
+
+# Universal cloud provider IP detection
 get_public_ip() {
-  # First try AWS metadata service
-  AWS_IP=$(curl -s --connect-timeout 3 http://169.254.169.254/latest/meta-data/public-ipv4 || echo "")
-  
-  if [ ! -z "$AWS_IP" ]; then
-    echo "$AWS_IP"
-    return
-  fi
-  
-  # If not on AWS, try other IP detection services
-  SERVER_IP=$(curl -s https://api.ipify.org || \
-              curl -s https://ifconfig.me || \
-              curl -s https://icanhazip.com)
+    local ip=""
+    
+    # Try AWS metadata (using IMDSv2)
+    if curl -s --connect-timeout 1 "http://169.254.169.254/latest/api/token" -X PUT -H "X-aws-ec2-metadata-token-ttl-seconds: 21600" >/dev/null 2>&1; then
+        local token=$(curl -s "http://169.254.169.254/latest/api/token" -X PUT -H "X-aws-ec2-metadata-token-ttl-seconds: 21600")
+        ip=$(curl -s -H "X-aws-ec2-metadata-token: $token" http://169.254.169.254/latest/meta-data/public-ipv4)
+    fi
 
-  if [ -z "$SERVER_IP" ]; then
-    echo -e "${RED}Failed to detect public IP address${NC}"
-    exit 1
-  fi
+    # Try Azure IMDS if AWS failed
+    if [ -z "$ip" ]; then
+        ip=$(curl -s -H Metadata:true --noproxy "*" "http://169.254.169.254/metadata/instance/network/interface/0/ipAddress/ipAddress?api-version=2021-02-01")
+    fi
 
-  echo "$SERVER_IP"
+    # Try Google Cloud metadata if Azure failed
+    if [ -z "$ip" ]; then
+        ip=$(curl -s -H "Metadata-Flavor: Google" "http://metadata.google.internal/computeMetadata/v1/instance/network-interfaces/0/access-configs/0/external-ip")
+    fi
+
+    # If all cloud providers failed, try external IP services
+    if [ -z "$ip" ] || [[ ! $ip =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+        for ip_service in "https://api.ipify.org" "https://ifconfig.me" "https://icanhazip.com"; do
+            ip=$(curl -s --max-time 5 "$ip_service")
+            if [[ $ip =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+                break
+            fi
+        done
+    fi
+
+    # Final validation
+    if [[ $ip =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+        echo "$ip"
+    else
+        echo -e "${RED}Failed to detect public IP address${NC}"
+        exit 1
+    fi
 }
+
 
 # Function to generate a random email
 generate_email() {
@@ -110,9 +129,14 @@ DOMAIN=${DOMAIN:-$SERVER_IP}
 # Traefik Configuration
 ACME_EMAIL=${ADMIN_EMAIL}
 TRAEFIK_CONFIG_DIR=/etc/traefik
-EOF
+MONGO_KEYFILE_DIR=${PWD}/data/mongodb-keyfiles
+MONGO_DATA_DIR=${PWD}/data/mongodb
 
+EOF
+  chown "$ACTUAL_USER:$ACTUAL_USER" "${INSTALL_DIR}/.env"
+    
   echo -e "${GREEN}Created new .env file at ${INSTALL_DIR}/.env${NC}"
+  
   # Debug output
   ls -la "${INSTALL_DIR}/.env"
 }
@@ -137,60 +161,172 @@ verify_docker() {
 
   echo -e "${GREEN}Docker is ready${NC}"
 }
+# Universal Docker setup
+setup_docker() {
+    echo -e "${YELLOW}Setting up Docker...${NC}"
+    
+    # Install Docker if not present
+    if ! command -v docker &> /dev/null; then
+        echo -e "${YELLOW}Installing Docker...${NC}"
+        curl -fsSL https://get.docker.com -o get-docker.sh
+        sh get-docker.sh
+        rm get-docker.sh
+    fi
 
-# Function to setup Traefik directories and permissions
-setup_traefik() {
-  echo -e "${YELLOW}Setting up Traefik configuration...${NC}"
-  
-  # Create required directories
-  sudo mkdir -p /etc/traefik/dynamic
-  sudo mkdir -p /etc/traefik/acme
-  
-  # Create files
-  sudo touch /etc/traefik/acme/acme.json
-  sudo touch /etc/traefik/dynamic/website.yml
-  
-  # Set permissions for acme.json
-  sudo chmod 600 /etc/traefik/acme/acme.json
-  sudo chown root:root /etc/traefik/acme/acme.json
-  
-  # Set permissions for dynamic config
-  sudo chmod -R 755 /etc/traefik/dynamic
-  sudo chown -R 1000:1000 /etc/traefik/dynamic
-  
-  echo -e "${GREEN}Traefik configuration setup complete${NC}"
+    # Setup Docker group
+    if ! getent group docker > /dev/null; then
+        groupadd docker
+    fi
+
+    # Add user to docker group
+    usermod -aG docker "$ACTUAL_USER"
+    
+    # Configure Docker daemon
+    mkdir -p /etc/docker
+    cat > /etc/docker/daemon.json << EOL
+{
+  "log-driver": "json-file",
+  "log-opts": {
+    "max-size": "10m",
+    "max-file": "3"
+  },
+  "iptables": true,
+  "default-address-pools": [
+    {
+      "base": "172.17.0.0/16",
+      "size": 24
+    }
+  ]
+}
+EOL
+
+    # Start and enable Docker
+    systemctl start docker
+    systemctl enable docker
+    
+    # Set proper permissions
+    chmod 666 /var/run/docker.sock
+    
+    echo -e "${GREEN}Docker setup complete${NC}"
 }
 
+# Setup Traefik
+setup_traefik() {
+    echo -e "${YELLOW}Setting up Traefik...${NC}"
+    
+    # Create required directories
+    mkdir -p /etc/traefik/dynamic
+    mkdir -p /etc/traefik/acme
+    
+    # Create and set permissions for acme.json
+    touch /etc/traefik/acme/acme.json
+    chmod 600 /etc/traefik/acme/acme.json
+    
+    # Create basic Traefik configuration
+    cat > /etc/traefik/traefik.yml << EOL
+api:
+  dashboard: true
+  insecure: true
+
+providers:
+  docker:
+    endpoint: "unix:///var/run/docker.sock"
+    exposedByDefault: false
+    watch: true
+  file:
+    directory: "/etc/traefik/dynamic"
+    watch: true
+
+entryPoints:
+  web:
+    address: ":80"
+  websecure:
+    address: ":443"
+
+certificatesResolvers:
+  letsencrypt:
+    acme:
+      email: "admin@flexidb.local"
+      storage: "/etc/traefik/acme/acme.json"
+      httpChallenge:
+        entryPoint: web
+EOL
+
+    echo -e "${GREEN}Traefik setup complete${NC}"
+}
 # Function to clone or update repository
 setup_repository() {
-  echo -e "${YELLOW}Setting up FlexiDB repository...${NC}"
-
-  # Check if directory exists
-  if [ -d "$INSTALL_DIR" ]; then
-    echo -e "${YELLOW}Removing existing directory...${NC}"
-    rm -rf "$INSTALL_DIR"
-  fi
-
-  # Clone repository as the actual user
-  echo -e "${YELLOW}Cloning repository...${NC}"
-  sudo -u ${ACTUAL_USER} git clone https://github.com/Flexidbio/flexidb.git "$INSTALL_DIR"
-
-  if [ $? -eq 0 ]; then
-    echo -e "${GREEN}Repository cloned successfully${NC}"
-    # Removed 'exit 1' to allow script to continue
-  else
-    echo -e "${RED}Failed to clone repository${NC}"
-    exit 1
-  fi
+    echo -e "${YELLOW}Setting up FlexiDB repository...${NC}"
+    
+    # Remove existing directory if present
+    if [ -d "$INSTALL_DIR" ]; then
+        rm -rf "$INSTALL_DIR"
+    fi
+    
+    # Clone repository as the actual user
+    sudo -u "$ACTUAL_USER" git clone -b feature/mongo-replica-set https://github.com/Flexidbio/flexidb.git "$INSTALL_DIR"
+    
+    if [ $? -ne 0 ]; then
+        echo -e "${RED}Failed to clone repository${NC}"
+        exit 1
+    fi
+    
+    # Set proper permissions
+    chown -R "$ACTUAL_USER:$ACTUAL_USER" "$INSTALL_DIR"
+    
+    echo -e "${GREEN}Repository setup complete${NC}"
 }
-
 # Function to start services
 start_services() {
   echo -e "${YELLOW}Starting services...${NC}"
   cd "$INSTALL_DIR"
+
+  # Stash any local changes
+  echo -e "${YELLOW}Handling local changes...${NC}"
+  git config --global --add safe.directory "$INSTALL_DIR"
+  
+  # Check if there are any changes
+  if git status --porcelain | grep -q '^'; then
+    echo -e "${YELLOW}Stashing local changes...${NC}"
+    git stash push --include-untracked
+  fi
+
+  # Checkout the branch
+  echo -e "${YELLOW}Checking out feature branch...${NC}"
+  git fetch origin
+  git checkout feature/mongo-replica-set 
+
+  # Pop the stashed changes if any were stashed
+  if git stash list | grep -q 'stash@{0}'; then
+    echo -e "${YELLOW}Reapplying local changes...${NC}"
+    git stash pop
+  fi 
+
+  
+
+  echo -e "${YELLOW}Starting Docker services...${NC}"
   docker compose down -v 2>/dev/null || true
   docker compose up -d
   echo -e "${GREEN}Services started${NC}"
+}
+
+setup_mongodb() {
+    echo -e "${YELLOW}Setting up MongoDB directories...${NC}"
+    
+    # Execute the MongoDB setup script from the cloned repository
+    chmod +x "${INSTALL_DIR}/scripts/setup-mongodb.sh"
+    "${INSTALL_DIR}/scripts/setup-mongodb.sh"
+    
+    # Add MongoDB environment variables to .env file
+    cat >> "${INSTALL_DIR}/.env" << EOF
+
+# MongoDB Configuration
+MONGODB_BASE_DIR=/var/lib/flexidb
+MONGODB_DATA_DIR=/var/lib/flexidb/mongodb
+MONGODB_KEYFILE_DIR=/var/lib/flexidb/mongodb-keyfiles
+EOF
+    
+    echo -e "${GREEN}MongoDB setup complete${NC}"
 }
 
 # Function to wait for services
@@ -322,6 +458,7 @@ main() {
   # 3. Repository and environment setup
   setup_repository
   create_env_file
+  setup_mongodb
   verify_environment  # Moved after create_env_file
 
   # 4. Export environment variables
@@ -338,7 +475,7 @@ main() {
   # 7. Services
   start_services
   wait_for_services
-
+  
   # 8. Database setup
   setup_database
 
