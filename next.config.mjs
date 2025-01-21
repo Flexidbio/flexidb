@@ -19,6 +19,9 @@ const nextConfig = {
   },
   experimental: {
     instrumentationHook: false,
+    serverActions: {
+      allowedOrigins: [process.env.NEXTAUTH_URL || "http://localhost:3000"],
+    }
   },
 }
 
