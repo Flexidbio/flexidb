@@ -1,6 +1,6 @@
 import Docker,{Container} from 'dockerode';
 import { networkInterfaces, platform } from 'os';
-import { prisma } from "@/lib/db/prisma"
+
 import { isPortAvailable } from "@/lib/net/actions"
 
 export interface ContainerInfo {
