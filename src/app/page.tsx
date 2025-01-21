@@ -1,4 +1,4 @@
-// app/page.tsx
+
 import { auth } from "@/lib/auth/auth";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";

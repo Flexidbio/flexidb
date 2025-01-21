@@ -1,40 +1,42 @@
-FROM oven/bun:1.0.7-alpine AS base
+FROM oven/bun:1-alpine AS base
 WORKDIR /app
 
-# Install build dependencies
+# Install only essential build dependencies
 RUN apk add --no-cache python3 make g++
 
-# Copy dependency files first for better caching
+# Install dependencies and generate Prisma client
 COPY package.json bun.lockb ./
 COPY prisma ./prisma/
 
-# Install dependencies and generate Prisma client
-RUN bun install \
+RUN bun install --frozen-lockfile \
     && bunx prisma generate \
     && rm -rf /root/.bun-cache
 
-# Copy application source
-COPY . .
-
 # Build the application
+COPY . .
+ENV NEXT_TELEMETRY_DISABLED=1 \
+    NODE_ENV=production
+
 RUN bun run build
 
 # Production stage
-FROM oven/bun:1.0.7-alpine AS runner
+FROM oven/bun:1-alpine AS runner
 WORKDIR /app
 
-ENV NODE_ENV='production' \
+ENV NODE_ENV=production \
     NEXT_TELEMETRY_DISABLED=1 \
     PORT=3000 \
     HOSTNAME="0.0.0.0"
 
-# Create non-root user and required directories
-RUN addgroup -g 1001 nodejs \
-    && adduser -u 1001 -G nodejs -D nextjs \
-    && mkdir -p .next/cache \
-    && chown -R nextjs:nodejs .next
+# Create non-root user and required groups
+RUN addgroup -S -g 1001 nodejs && \
+    adduser -S -u 1001 -G nodejs nextjs && \
+    addgroup -S -g 998 docker && \
+    adduser nextjs docker && \
+    mkdir -p .next/cache/{fetch-cache,images,fetch} && \
+    chown -R nextjs:nodejs .next
 
-# Copy built assets and dependencies
+# Copy only necessary files
 COPY --from=base --chown=nextjs:nodejs /app/public ./public
 COPY --from=base --chown=nextjs:nodejs /app/.next ./.next
 COPY --from=base --chown=nextjs:nodejs /app/package.json ./package.json
