@@ -17,6 +17,9 @@ const nextConfig = {
     NEXTAUTH_SECRET: process.env.NEXTAUTH_SECRET,
     TRAEFIK_CONFIG_DIR: process.env.TRAEFIK_CONFIG_DIR,
   },
+  experimental: {
+    instrumentationHook: false,
+  },
 }
 
 export default nextConfig
