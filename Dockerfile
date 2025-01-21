@@ -9,7 +9,7 @@ COPY package.json bun.lockb ./
 COPY prisma ./prisma/
 
 # Install dependencies and generate Prisma client
-RUN bun install --frozen-lockfile \
+RUN bun install \
     && bunx prisma generate \
     && rm -rf /root/.bun-cache
 
