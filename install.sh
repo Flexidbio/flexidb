@@ -301,7 +301,7 @@ setup_permissions() {
 # Function to setup environment variables
 setup_environment() {
   # Get the server's public IP
-  SERVER_IP=$(curl -s https://api.ipify.org || curl -s https://ifconfig.me || curl -s https://icanhazip.com)
+  SERVER_IP=$(get_public_ip)
   if [ -z "$SERVER_IP" ]; then
     echo -e "${RED}Failed to detect public IP address${NC}"
     exit 1
