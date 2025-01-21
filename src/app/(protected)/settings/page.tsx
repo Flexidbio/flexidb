@@ -44,7 +44,7 @@ export default async function SettingsPage() {
           <SecuritySettings />
         </TabsContent>
         <TabsContent value="domain" className="space-y-4">
-          <DomainSettings />
+          <DomainSettings session={session} />
         </TabsContent>
       </Tabs>
     </div>
