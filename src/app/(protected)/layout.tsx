@@ -16,7 +16,7 @@ export default async function ProtectedLayout({
 
   return (
     <div className="flex min-h-screen">
-      <Sidebar className="w-64 border-r" />
+      <Sidebar className="w-64 border-r" user={session.user} />
       <main className="flex-1 overflow-y-auto p-8">
         {children}
       </main>

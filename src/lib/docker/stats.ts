@@ -6,9 +6,9 @@ export async function getContainerStats() {
   try {
     // Get container stats
     const [traefikStats, dbStats, appStats] = await Promise.all([
-      docker.docker.getContainer('fllexidb_traefik').stats({ stream: false }),
-      docker.docker.getContainer('fllexidb_postgres').stats({ stream: false }),
-      docker.docker.getContainer('fllexidb_app').stats({ stream: false })
+      docker.docker.getContainer('flexidb_traefik').stats({ stream: false }),
+      docker.docker.getContainer('flexidb_postgres').stats({ stream: false }),
+      docker.docker.getContainer('flexidb_app').stats({ stream: false })
     ]);
 
     // Calculate CPU percentage for each container

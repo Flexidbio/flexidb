@@ -49,24 +49,17 @@ services:
       start_period: 10s
     networks:
       - flexidb_network
-
   app:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      target: runner
+    image: ghcr.io/flexidbio/flexidb:latest  # Changed from build: to image:
     container_name: flexidb_app
     restart: always
     environment:
       - SERVER_IP=${SERVER_IP}
       - DOMAIN=${DOMAIN}
-      - NEXTAUTH_URL=http://${SERVER_IP}:3000
+      - NEXTAUTH_URL=https://${SERVER_IP}:3000
       - NEXTAUTH_URL_INTERNAL=http://localhost:3000
-      - NEXT_PUBLIC_APP_URL=http://${SERVER_IP}:3000
+      - NEXT_PUBLIC_APP_URL=https://${SERVER_IP}:3000
       - NEXTAUTH_SECRET=${NEXTAUTH_SECRET}
-      - POSTGRES_USER=${POSTGRES_USER:-postgres}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-postgres}
-      - POSTGRES_DB=${POSTGRES_DB:-flexidb}
     env_file: .env
     ports:
       - "3000:3000"

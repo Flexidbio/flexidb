@@ -118,7 +118,7 @@ NEXTAUTH_SECRET=${NEXTAUTH_SECRET}
 NEXTAUTH_URL=https://${SERVER_IP}:3000
 NEXTAUTH_URL_INTERNAL=http://localhost:3000
 NEXT_PUBLIC_APP_URL=https://${SERVER_IP}:3000
-
+NODE_ENV=production
 # Docker Configuration
 COMPOSE_PROJECT_NAME=flexidb
 DOMAIN=${DOMAIN:-$SERVER_IP}
@@ -202,8 +202,10 @@ setup_repository() {
 
 # Function to start services
 start_services() {
+  echo -e "${YELLOW}Pulling Docker images...${NC}"
+  docker compose pull -q
+  
   echo -e "${YELLOW}Starting services...${NC}"
-  cd "$INSTALL_DIR"
   docker compose down -v 2>/dev/null || true
   docker compose up -d
   echo -e "${GREEN}Services started${NC}"
