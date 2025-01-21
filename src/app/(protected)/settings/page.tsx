@@ -1,22 +1,26 @@
 import { Metadata } from "next"
-import { auth } from "@/lib/auth/auth"
-import { redirect } from "next/navigation"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ProfileSettings } from "@/components/settings/profile-settings"
 import { EmailSettings } from "@/components/settings/email-settings"
 import { SecuritySettings } from "@/components/settings/security-settings"
 import { DomainSettings } from "@/components/settings/domain-settings"
+import { auth } from "@/auth"
+import { headers } from 'next/headers'
+
 export const metadata: Metadata = {
   title: "Settings",
   description: "Manage your account settings",
 }
 
 export default async function SettingsPage() {
+  // Add debug logging
   const session = await auth()
-  
-  if (!session?.user) {
-    redirect("/auth/login")
-  }
+  const headersList = headers()
+  console.log('Settings Page Debug:', {
+    hasSession: !!session,
+    path: headersList.get("x-invoke-path"),
+    cookies: headersList.get("cookie"),
+  })
 
   return (
     <div className="space-y-6">
@@ -44,7 +48,7 @@ export default async function SettingsPage() {
           <SecuritySettings />
         </TabsContent>
         <TabsContent value="domain" className="space-y-4">
-          <DomainSettings session={session} />
+          <DomainSettings />
         </TabsContent>
       </Tabs>
     </div>

@@ -1,6 +1,7 @@
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
 import { Sidebar } from "@/components/sidebar";
+import { headers } from 'next/headers';
 
 export default async function ProtectedLayout({
   children,
@@ -10,7 +11,8 @@ export default async function ProtectedLayout({
   const session = await auth();
   
   if (!session?.user) {
-    const currentPath = "/dashboard"; // You can make this dynamic if needed
+    const headersList = headers();
+    const currentPath = headersList.get("x-invoke-path") || "/dashboard";
     redirect(`/auth/login?callbackUrl=${encodeURIComponent(currentPath)}`);
   }
 
