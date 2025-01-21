@@ -202,8 +202,16 @@ setup_repository() {
 # Function to start services
 start_services() {
   echo -e "${YELLOW}Starting services...${NC}"
-  docker compose down -v 2>/dev/null || true
-  docker compose up -d
+  cd "$INSTALL_DIR"
+  
+  # Fix directory permissions (allow root to read cloned files)
+  chmod -R 755 "$INSTALL_DIR"
+  chown -R root:root "$INSTALL_DIR"
+  
+  # Explicitly specify compose file
+  docker compose -f "$INSTALL_DIR/docker-compose.yml" down -v 2>/dev/null || true
+  docker compose -f "$INSTALL_DIR/docker-compose.yml" up -d
+  
   echo -e "${GREEN}Services started${NC}"
 }
 

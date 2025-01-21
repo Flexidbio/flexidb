@@ -2,13 +2,21 @@ FROM oven/bun:1-alpine AS base
 WORKDIR /app
 
 # Install only essential build dependencies
-RUN apk add --no-cache python3 make g++
+RUN apk add --no-cache \
+    python3 \
+    make \
+    g++ \
+    py3-pip \
+    libc6-compat  # Required for native modules
 
 # Install dependencies and generate Prisma client
 COPY package.json bun.lockb ./
 COPY prisma ./prisma/
 
-RUN bun install --frozen-lockfile \
+# Explicitly install node-gyp globally
+RUN bun install -g node-gyp
+
+RUN bun install \
     && bunx prisma generate \
     && rm -rf /root/.bun-cache
 
