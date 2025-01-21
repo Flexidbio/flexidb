@@ -36,4 +36,8 @@ jobs:
             ghcr.io/flexidbio/flexidb:${{ github.sha }}
           labels: |
             org.opencontainers.image.source=flexidbio/flexidb
+            org.opencontainers.image.description=FlexiDB - A flexible database management system
+            org.opencontainers.image.licenses=MIT
+          public: true
+          
           
