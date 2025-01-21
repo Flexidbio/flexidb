@@ -201,9 +201,6 @@ setup_repository() {
 
 # Function to start services
 start_services() {
-  echo -e "${YELLOW}Pulling Docker images...${NC}"
-  docker compose pull -q
-  
   echo -e "${YELLOW}Starting services...${NC}"
   docker compose down -v 2>/dev/null || true
   docker compose up -d
