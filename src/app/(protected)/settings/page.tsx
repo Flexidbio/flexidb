@@ -13,14 +13,9 @@ export const metadata: Metadata = {
 }
 
 export default async function SettingsPage() {
-  // Add debug logging
+  
   const session = await auth()
-  const headersList = headers()
-  console.log('Settings Page Debug:', {
-    hasSession: !!session,
-    path: headersList.get("x-invoke-path"),
-    cookies: headersList.get("cookie"),
-  })
+  
 
   return (
     <div className="space-y-6">

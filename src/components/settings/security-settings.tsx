@@ -5,6 +5,7 @@ import { useToast } from "@/hooks/use-toast"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { SignupToggle } from "./signup-toggle"
 
 
 export function SecuritySettings() {
@@ -72,7 +73,7 @@ export function SecuritySettings() {
           Update your password and security preferences
         </p>
       </div>
-
+      <SignupToggle/>
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="space-y-2">
           <Label htmlFor="currentPassword">Current Password</Label>
