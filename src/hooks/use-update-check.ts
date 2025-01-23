@@ -6,6 +6,19 @@ interface GitHubRelease {
   tag_name: string;
   html_url: string;
   body: string;
+  name: string;
+}
+
+function compareVersions(v1: string, v2: string): boolean {
+  const cleanV1 = v1.replace(/^v/, '').split('-')[0];
+  const cleanV2 = v2.replace(/^v/, '').split('-')[0];
+  
+  const [major1, minor1, patch1] = cleanV1.split('.').map(Number);
+  const [major2, minor2, patch2] = cleanV2.split('.').map(Number);
+  
+  return major1 > major2 || 
+    (major1 === major2 && minor1 > minor2) ||
+    (major1 === major2 && minor1 === minor2 && patch1 > patch2);
 }
 
 async function fetchLatestRelease(): Promise<GitHubRelease> {
@@ -30,16 +43,15 @@ export function useUpdateCheck() {
     if (!currentVersion) return;
 
     fetchLatestRelease().then(data => {
-      const latest = data.tag_name.replace('v', '');
-      const current = currentVersion.replace('v', '');
+      const latest = data.name.replace(/^v/, '');
+      const current = currentVersion.replace(/^v/, '');
 
-      if (latest !== current) {
+      if (compareVersions(latest, current)) {
         toast({
           title: "Update Available",
           description: `Version ${latest} is available. You are currently on ${current}`,
           duration: 0
         });
-        
       }
     }).catch(console.error);
   }, [currentVersion]);
