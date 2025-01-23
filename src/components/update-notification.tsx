@@ -5,19 +5,13 @@ import { Alert, AlertDescription, AlertTitle } from './ui/alert';
 import { Button } from './ui/button';
 import { Download, Loader2 } from 'lucide-react';
 
-interface UpdateNotificationProps {
-  latest: string;
-  current: string;
-  releaseUrl: string;
-}
-
-export function UpdateNotification({ latest, current, releaseUrl }: UpdateNotificationProps) {
+export function UpdateNotification() {
   const { updateInfo, isLoading, isPending, performUpdate } = useUpdate();
 
   if (isLoading || !updateInfo?.hasUpdate) return null;
 
   return (
-    <Alert className="mb-4">
+    <Alert className="fixed top-4 right-4 w-96 z-50">
       <Download className="h-4 w-4" />
       <AlertTitle>Update Available</AlertTitle>
       <AlertDescription className="flex items-center justify-between">
