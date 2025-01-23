@@ -55,4 +55,4 @@ COPY --from=base --chown=nextjs:nodejs /app/prisma ./prisma
 USER nextjs
 EXPOSE 3000
 
-CMD ["sh", "-c", "./docker/wait-for-db.sh && bunx prisma migrate deploy --schema ./prisma/schema.prisma && bunx prisma generate --schema ./prisma/schema.prisma && bun run build && bun run start"]
+CMD ["sh", "-c", "bunx prisma migrate deploy --schema ./prisma/schema.prisma && bunx prisma generate --schema ./prisma/schema.prisma && bun run build && bun run start"]
