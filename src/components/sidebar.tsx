@@ -8,6 +8,7 @@ import Link from "next/link"
 import { Database, Settings, LogOut, BarChart } from "lucide-react"
 import { signOut } from "next-auth/react"
 import { ThemeToggle } from "@/components/theme-toggle"
+import { VersionDisplay } from "@/components/version-display"
 
 interface SidebarProps extends React.HTMLAttributes<HTMLDivElement> {
   defaultCollapsed?: boolean
@@ -80,7 +81,12 @@ export function Sidebar({ className, user }: SidebarProps) {
             </div>
           </div>
           <div className="flex items-center justify-between gap-2">
-            <ThemeToggle />
+            <div className="flex items-center gap-2">
+              <ThemeToggle />
+              <div className="text-xs text-muted-foreground">
+                <VersionDisplay />
+              </div>
+            </div>
             <Button
               variant="ghost"
               size="icon"
@@ -96,4 +102,3 @@ export function Sidebar({ className, user }: SidebarProps) {
     </div>
   )
 }
-

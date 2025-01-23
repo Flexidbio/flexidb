@@ -12,7 +12,8 @@
     "prisma:studio": "prisma studio",
     "git:push": "git add . && git commit -m 'update' && git push",
     "create-admin": "yarn run scripts/create-admin.ts",
-    "ui:add":"bunx --bun shadcn@latest add"
+    "ui:add":"bunx --bun shadcn@latest add",
+    "bump:version": "node ./scripts/bump-version.js"
   },
   "dependencies": {
     "@auth/core": "^0.37.2",
