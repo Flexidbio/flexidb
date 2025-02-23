@@ -124,18 +124,14 @@ export async function configureDomain(input: DomainConfigInput) {
 }
 
 export async function getCurrentDomain() {
-  const session = await auth();
-  if (!session?.user?.isAdmin) {
-    throw new Error('Unauthorized - Admin access required');
-  }
-
   try {
     const settings = await prisma.settings.findFirst({
       where: { id: "default" }
     });
+    
     return settings?.domain || null;
-  } catch (error: any) {
+  } catch (error) {
     console.error('Failed to get current domain:', error);
-    throw new Error('Failed to get current domain configuration');
+    throw error;
   }
 }

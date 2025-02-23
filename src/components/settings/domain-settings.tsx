@@ -173,7 +173,7 @@ export function DomainSettings({ session }: { session: Session }) {
           <Input
             id="domain"
             placeholder={selectedProvider === 'custom' ? "example.com" : "Auto-generated domain"}
-            value={domain}
+            value={domain || currentDomain || ''}
             onChange={(e) => setDomain(e.target.value)}
             disabled={isPending || selectedProvider !== 'custom'}
           />

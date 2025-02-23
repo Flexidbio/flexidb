@@ -32,8 +32,14 @@ export function useConfigureDomain() {
 export function useCurrentDomain() {
   return useQuery({
     queryKey: ['traefik-domain'],
-    queryFn: traefikActions.getCurrentDomain,
+    queryFn: async () => {
+      const domain = await traefikActions.getCurrentDomain();
+      if (!domain) {
+        // If no domain is set, try to get the default from env
+        return process.env.DOMAIN || null;
+      }
+      return domain;
+    },
     staleTime: 1000 * 60 * 5, // Consider data fresh for 5 minutes
-    refetchOnWindowFocus: true, // Refetch when window regains focus
   });
 }
