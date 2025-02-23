@@ -38,6 +38,7 @@ export function DomainSettings({ session }: { session: Session }) {
       } else {
         setSelectedProvider('custom')
       }
+      checkDns(currentDomain)
     }
   }, [currentDomain])
 
@@ -112,7 +113,14 @@ export function DomainSettings({ session }: { session: Session }) {
     if (!domain) return;
 
     const dnsValid = await checkDns(domain);
-    if (!dnsValid) return;
+    if (!dnsValid && selectedProvider === 'custom') {
+      toast({
+        title: "Warning",
+        description: "DNS is not properly configured. Please check your DNS settings.",
+        variant: "destructive"
+      });
+      return;
+    }
 
     try {
       await configureDomain(
@@ -123,6 +131,7 @@ export function DomainSettings({ session }: { session: Session }) {
               title: "Success",
               description: "Domain configured successfully. Changes will take effect in a few minutes."
             });
+            window.location.reload();
           },
           onError: (error) => {
             toast({
