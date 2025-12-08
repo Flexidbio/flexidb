@@ -1,4 +1,4 @@
-FROM oven/bun:1-alpine AS base
+FROM oven/bun:1.0.30-alpine AS base
 WORKDIR /app
 
 # Install only essential build dependencies
@@ -6,8 +6,7 @@ RUN apk add --no-cache \
     python3 \
     make \
     g++ \
-    py3-pip \
-    libc6-compat  # Required for native modules
+    py3-pip 
 
 # Install dependencies and generate Prisma client
 COPY package.json bun.lockb ./
