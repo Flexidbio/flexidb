@@ -1,0 +1,36 @@
+name: SSH and Run Commands
+on:
+  workflow_run:
+    workflows: ["Build and Push Docker Image"]
+    types:
+      - completed
+    branches:
+      - main
+jobs:
+  deploy:
+    name: Run Remote SSH Command
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Execute SSH commmands
+
+      uses: appleboy/ssh-action@master
+      with:
+        host: ${{ secrets.SSH_HOST }}
+        username: ${{ secrets.SSH_USERNAME }}
+        key: ${{ secrets.SSH_KEY }}
+        port: 22
+
+        script: |
+          echo "I am now connected to the server!"
+          echo "Running a deployment command..."
+          whoami
+          cd flexidb && \
+          docker compose down -v && \
+          docker system prune -a --volumes -f && \
+          sudo rm -rf /root/flexidb && \
+          cd  && \
+          curl -fsSL https://raw.githubusercontent.com/Flexidbio/flexidb/refs/main/install.sh | sudo bash 

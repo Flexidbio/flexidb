@@ -26,7 +26,7 @@ ______   **         **____     **  **     **     **___     ______
 /\  ___\ /\ \       /\  ___\   /\_\_\_\   /\ \   /\  __-.  /\  == \   
 \ \  **\ \ \ \**__  \ \  __\   \/_/\_\/_  \ \ \  \ \ \/\ \ \ \  __<   
  \ \_\    \ \_____\  \ \_____\   /\_\/\_\  \ \_\  \ \____-  \ \_____\ 
-  \/_/     \/_____/   \/_____/   \/_/\/_/   \/_/   \/____/   \/_____/ 
+  \/_/     \/_____/   \/_____/   \/_/\/_/   \/_/   \/____/   \/_____/ n
                                                                           
 EOF
 echo
@@ -104,6 +104,7 @@ create_env_file() {
 
   cat > "${INSTALL_DIR}/.env" << EOF
 # Database Configuration
+NODE_ENV=production
 POSTGRES_USER=postgres
 POSTGRES_PASSWORD=${DB_PASSWORD}
 POSTGRES_DB=flexidb
