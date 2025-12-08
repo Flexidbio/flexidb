@@ -1,33 +1,39 @@
-FROM oven/bun:1.0.30-alpine AS base
+# ---------- Base Builder (Debian, fast, stable) ----------
+FROM oven/bun:1 AS base
 WORKDIR /app
 
-# Install only essential build dependencies
-RUN apk add --no-cache \
+# Fix node-pty by forcing Bun to emulate Node 20 instead of Node 24
+ENV BUN_DELEGATE_NODE=20
+
+# Install build tools for Prisma / node-gyp packages
+RUN apt-get update && apt-get install -y \
     python3 \
     make \
     g++ \
-    py3-pip 
+    python3-pip \
+    && rm -rf /var/lib/apt/lists/*
 
-# Install dependencies and generate Prisma client
+# Copy package manager files first (better caching)
 COPY package.json bun.lockb ./
 COPY prisma ./prisma/
 
-# Explicitly install node-gyp globally
-RUN bun install -g node-gyp
-
-RUN bun install \
+# Install dependencies (skip running native install scripts that break)
+RUN bun install --ignore-scripts \
     && bunx prisma generate \
     && rm -rf /root/.bun-cache
 
-# Build the application
+# Copy the full source after deps are installed
 COPY . .
+
+# Disable Next.js telemetry + set prod env
 ENV NEXT_TELEMETRY_DISABLED=1 \
     NODE_ENV=production
 
+# Build the Next.js / Bun app
 RUN bun run build
 
-# Production stage
-FROM oven/bun:1-alpine AS runner
+# ---------- Production Runner (NOT ALPINE — glibc required!) ----------
+FROM oven/bun:1 AS runner
 WORKDIR /app
 
 ENV NODE_ENV=production \
@@ -35,21 +41,19 @@ ENV NODE_ENV=production \
     PORT=3000 \
     HOSTNAME="0.0.0.0"
 
-# Create non-root user and required groups
-RUN addgroup -S -g 1001 nodejs && \
-    adduser -S -u 1001 -G nodejs nextjs && \
-    addgroup -S -g 998 docker && \
-    adduser nextjs docker && \
-    mkdir -p .next/cache/{fetch-cache,images,fetch} && \
-    chown -R nextjs:nodejs .next
+# Create user and folders used by Next.js
+RUN groupadd -g 1001 nodejs && \
+    useradd -u 1001 -g 1001 -m nextjs && \
+    mkdir -p .next/cache/{fetch-cache,images,fetch}
 
-# Copy only necessary files
+
+# Copy artifacts from the builder stage
 COPY --from=base --chown=nextjs:nodejs /app/public ./public
 COPY --from=base --chown=nextjs:nodejs /app/.next ./.next
 COPY --from=base --chown=nextjs:nodejs /app/package.json ./package.json
-COPY --from=base --chown=nextjs:nodejs /app/bun.lockb ./bun.lockb
-COPY --from=base --chown=nextjs:nodejs /app/node_modules ./node_modules
 COPY --from=base --chown=nextjs:nodejs /app/prisma ./prisma
+COPY --from=base --chown=nextjs:nodejs /app/node_modules ./node_modules
+COPY --from=base --chown=nextjs:nodejs /app/bun.lockb ./bun.lockb
 
 USER nextjs
 EXPOSE 3000
