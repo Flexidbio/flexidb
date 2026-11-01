@@ -14,7 +14,7 @@ import { DatabaseConnectionTab } from "@/components/database/tabs/connection-tab
 import { DatabaseBackupTab } from "@/components/database/tabs/backup-tab";
 import { DatabaseUsersTab } from "@/components/database/tabs/users-tab";
 import { DatabaseStatusBadge, getDatabaseEngine } from "@/components/database/database-ui";
-import { Suspense, useState } from "react";
+import { Suspense, use, useState } from "react";
 import Link from "next/link";
 
 const tabClassName = "min-h-11 flex-1 gap-2 rounded-none border-b-2 border-transparent px-4 py-3 text-sm text-muted-foreground shadow-none transition-colors data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-foreground data-[state=active]:shadow-none";
@@ -33,9 +33,9 @@ function DatabaseDetailsSkeleton() {
 }
 
 interface PageProps {
-  params: {
+  params: Promise<{
     id: string;
-  };
+  }>;
 }
 
 function DatabasePageContent({ id }: { id: string }) {
@@ -212,9 +212,10 @@ function DatabasePageContent({ id }: { id: string }) {
 }
 
 export default function DatabasePage({ params }: PageProps) {
+  const { id } = use(params);
   return (
     <Suspense fallback={<DatabaseDetailsSkeleton />}>
-      <DatabasePageContent id={params.id} />
+      <DatabasePageContent id={id} />
     </Suspense>
   );
 }

@@ -11,7 +11,7 @@ export default async function ProtectedLayout({
   const session = await auth();
   
   if (!session?.user) {
-    const headersList = headers();
+    const headersList = await headers();
     const currentPath = headersList.get("x-invoke-path") || "/dashboard";
     redirect(`/auth/login?callbackUrl=${encodeURIComponent(currentPath)}`);
   }

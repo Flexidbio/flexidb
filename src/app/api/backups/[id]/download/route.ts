@@ -5,16 +5,17 @@ export const dynamic = 'force-dynamic'
 
 export async function GET(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const result = await getBackupFile(params.id)
+    const { id } = await params
+    const result = await getBackupFile(id)
 
     if (!result) {
       return NextResponse.json({ error: 'Backup not found' }, { status: 404 })
     }
 
-    return new Response(result.data, {
+    return new Response(new Uint8Array(result.data), {
       headers: {
         'Content-Type': 'application/octet-stream',
         'Content-Disposition': `attachment; filename="${result.filename}"`,

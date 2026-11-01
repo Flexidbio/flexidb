@@ -1,0 +1,36 @@
+diff --git a/dist/commonjs/index.js b/dist/commonjs/index.js
+--- a/dist/commonjs/index.js
++++ b/dist/commonjs/index.js
+@@ -1547,4 +1547,6 @@
+ exports.minimatch.Minimatch = Minimatch;
+ exports.minimatch.escape = escape_js_1.escape;
+ exports.minimatch.unescape = unescape_js_1.unescape;
++// Support legacy callable imports used by older tooling with the patched matcher.
++module.exports = Object.assign(exports.minimatch, exports);
+ //# sourceMappingURL=index.js.map
+diff --git a/dist/esm/index.js b/dist/esm/index.js
+--- a/dist/esm/index.js
++++ b/dist/esm/index.js
+@@ -1536,4 +1536,6 @@
+ minimatch.Minimatch = Minimatch;
+ minimatch.escape = escape;
+ minimatch.unescape = unescape;
++// Support legacy default imports used by older tooling with the patched matcher.
++export default minimatch;
+ //# sourceMappingURL=index.js.map
+diff --git a/dist/commonjs/index.d.ts b/dist/commonjs/index.d.ts
+--- a/dist/commonjs/index.d.ts
++++ b/dist/commonjs/index.d.ts
+@@ -183,3 +183,4 @@
+ export { unescape } from './unescape.js';
+ export type { Form };
++export default minimatch;
+ //# sourceMappingURL=index.d.ts.map
+diff --git a/dist/esm/index.d.ts b/dist/esm/index.d.ts
+--- a/dist/esm/index.d.ts
++++ b/dist/esm/index.d.ts
+@@ -183,3 +183,4 @@
+ export { unescape } from './unescape.js';
+ export type { Form };
++export default minimatch;
+ //# sourceMappingURL=index.d.ts.map

@@ -14,11 +14,12 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy package manager files first (better caching)
-COPY package.json bun.lockb ./
+COPY package.json bun.lock ./
+COPY patches ./patches/
 COPY prisma ./prisma/
 
 # Install dependencies (skip running native install scripts that break)
-RUN bun install --ignore-scripts \
+RUN bun install --frozen-lockfile --ignore-scripts \
     && bunx prisma generate \
     && rm -rf /root/.bun-cache
 
@@ -51,9 +52,10 @@ RUN groupadd -g 1001 nodejs && \
 COPY --from=base --chown=nextjs:nodejs /app/public ./public
 COPY --from=base --chown=nextjs:nodejs /app/.next ./.next
 COPY --from=base --chown=nextjs:nodejs /app/package.json ./package.json
+COPY --from=base --chown=nextjs:nodejs /app/patches ./patches
 COPY --from=base --chown=nextjs:nodejs /app/prisma ./prisma
 COPY --from=base --chown=nextjs:nodejs /app/node_modules ./node_modules
-COPY --from=base --chown=nextjs:nodejs /app/bun.lockb ./bun.lockb
+COPY --from=base --chown=nextjs:nodejs /app/bun.lock ./bun.lock
 
 USER nextjs
 EXPOSE 3000

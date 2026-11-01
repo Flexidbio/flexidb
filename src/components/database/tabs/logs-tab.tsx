@@ -1,5 +1,5 @@
 'use client';
-import { AwaitedReactNode, JSXElementConstructor, Key, ReactElement, ReactNode, ReactPortal, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useContainerLogs } from "@/hooks/use-docker";
@@ -98,7 +98,7 @@ export function DatabaseLogsTab({ containerId }: DatabaseLogsTabProps) {
         >
           {parsedLogs.length > 0 ? (
             <div className="space-y-1">
-              {parsedLogs.map((log: { timestamp: string | number | bigint | boolean | ReactElement<any, string | JSXElementConstructor<any>> | Iterable<ReactNode> | ReactPortal | Promise<AwaitedReactNode> | null | undefined; message: string | number | bigint | boolean | ReactElement<any, string | JSXElementConstructor<any>> | Iterable<ReactNode> | ReactPortal | Promise<AwaitedReactNode> | null | undefined; }, index: Key | null | undefined) => (
+              {parsedLogs.map((log, index) => (
                 <div key={index} className="text-sm">
                   <span className="text-muted-foreground">[{log.timestamp}]</span>{' '}
                   <span>{log.message}</span>
