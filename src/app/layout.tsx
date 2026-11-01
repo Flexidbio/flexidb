@@ -1,16 +1,36 @@
 import { Providers } from '@/components/providers/providers'
-import { Inter, Space_Grotesk, IBM_Plex_Mono } from 'next/font/google'
+import localFont from 'next/font/local'
 import "./globals.css"
 
-const inter = Inter({ subsets: ['latin'], variable: '--font-body' })
-const spaceGrotesk = Space_Grotesk({
-  subsets: ['latin'],
-  weight: ['500', '600', '700'],
+// Bundle the fonts from pinned packages instead of fetching Google Fonts during builds.
+const inter = localFont({
+  src: '../../node_modules/@fontsource-variable/inter/files/inter-latin-wght-normal.woff2',
+  weight: '100 900',
+  style: 'normal',
+  display: 'swap',
+  variable: '--font-body',
+})
+const spaceGrotesk = localFont({
+  src: '../../node_modules/@fontsource-variable/space-grotesk/files/space-grotesk-latin-wght-normal.woff2',
+  weight: '300 700',
+  style: 'normal',
+  display: 'swap',
   variable: '--font-display',
 })
-const plexMono = IBM_Plex_Mono({
-  subsets: ['latin'],
-  weight: ['400', '500'],
+const plexMono = localFont({
+  src: [
+    {
+      path: '../../node_modules/@fontsource/ibm-plex-mono/files/ibm-plex-mono-latin-400-normal.woff2',
+      weight: '400',
+      style: 'normal',
+    },
+    {
+      path: '../../node_modules/@fontsource/ibm-plex-mono/files/ibm-plex-mono-latin-500-normal.woff2',
+      weight: '500',
+      style: 'normal',
+    },
+  ],
+  display: 'swap',
   variable: '--font-mono',
 })
 
