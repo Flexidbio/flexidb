@@ -9,20 +9,18 @@ export const metadata: Metadata = {
 
 export default function ResetPasswordPage() {
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center p-4">
-      <div className="w-full max-w-[350px] space-y-6">
-        <div className="flex flex-col space-y-2 text-center">
-          <h1 className="text-2xl font-semibold tracking-tight">
-            Reset Password
-          </h1>
-          <p className="text-sm text-muted-foreground">
-            Enter your new password below
-          </p>
-        </div>
-        <Suspense fallback={<div>Loading...</div>}>
-          <ResetPasswordForm />
-        </Suspense>
+    <div className="space-y-6">
+      <div className="flex flex-col space-y-2">
+        <h1 className="text-2xl font-semibold tracking-tight">
+          Reset Password
+        </h1>
+        <p className="text-sm text-muted-foreground">
+          Enter your new password below
+        </p>
       </div>
-    </main>
+      <Suspense fallback={<div className="text-sm text-muted-foreground">Loading...</div>}>
+        <ResetPasswordForm />
+      </Suspense>
+    </div>
   );
 }

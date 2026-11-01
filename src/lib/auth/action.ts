@@ -40,7 +40,8 @@ export async function register(data: RegisterData) {
       email: data.email,
       password: hashedPassword,
       name: data.name,
-      isAdmin: isFirstUser // First user is automatically admin
+      isAdmin: isFirstUser,
+      role: isFirstUser ? 'ADMIN' : 'VIEWER',
     }
   });
 

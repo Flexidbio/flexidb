@@ -1,6 +1,6 @@
 // hooks/use-docker.ts
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { CreateContainerInput } from '@/lib/docker/actions';
+import { CreateContainerInput } from '@/lib/types';
 import * as dockerActions from '@/lib/docker/actions';
 import { toast } from '@/hooks/use-toast';
 import * as cmdActions from '@/lib/net/actions';
@@ -30,12 +30,13 @@ export function useCreateContainer() {
   });
 }
 
-export function useContainerOperation(operation: 'start' | 'stop' | 'remove') {
+export function useContainerOperation(operation: 'start' | 'stop' | 'remove' | 'restart') {
   const queryClient = useQueryClient();
   const operationFn = {
     start: dockerActions.startContainer,
     stop: dockerActions.stopContainer,
     remove: dockerActions.removeContainer,
+    restart: dockerActions.restartContainer,
   }[operation];
 
   return useMutation({

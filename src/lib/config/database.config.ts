@@ -20,7 +20,8 @@ export const DATABASE_CONFIGS: DatabaseConfigs = {
     internal_port: 27017,
     required_env_vars: ["MONGO_INITDB_ROOT_USERNAME", "MONGO_INITDB_ROOT_PASSWORD"],
     optional_env_vars: ["MONGO_INITDB_DATABASE"],
-    cmd: []
+    cmd: ["--replSet", "rs0"],
+    postStart: "replicaset"
   },
   redis: {
     image: "redis:latest",

@@ -1,5 +1,6 @@
 import Docker,{Container} from 'dockerode';
 import { networkInterfaces, platform } from 'os';
+import { Writable } from 'stream';
 
 import { isPortAvailable } from "@/lib/net/actions"
 
@@ -106,37 +107,123 @@ export class DockerClient {
     envVars: Record<string, string>,
     externalPort: number,
     internalPort: number,
-    network?: string
+    network?: string,
+    cmd?: string[],
+    resourceLimits?: { memoryMB?: number; cpuCount?: number }
   ): Promise<DockerResponse<Container>> {
-    // Check if port is actually available using net module
     const isAvailable = await isPortAvailable(externalPort)
     if (!isAvailable) {
       throw new Error(`Port ${externalPort} is already in use`)
     }
 
-    // Pull the image first
     await this.pullImage(image)
 
     const portBindings: any = {}
     portBindings[`${internalPort}/tcp`] = [{ HostPort: externalPort.toString() }]
-    
-    const container = await this.docker.createContainer({
+
+    const hostConfig: any = {
+      PortBindings: portBindings,
+      NetworkMode: network || 'bridge'
+    }
+
+    if (resourceLimits?.memoryMB) {
+      hostConfig.Memory = resourceLimits.memoryMB * 1024 * 1024
+      hostConfig.MemorySwap = resourceLimits.memoryMB * 1024 * 1024
+    }
+
+    if (resourceLimits?.cpuCount) {
+      hostConfig.NanoCpus = resourceLimits.cpuCount * 1e9
+    }
+
+    const createOptions: any = {
       name,
       Image: image,
       Env: Object.entries(envVars).map(([key, value]) => `${key}=${value}`),
       ExposedPorts: {
         [`${internalPort}/tcp`]: {}
       },
-      HostConfig: {
-        PortBindings: portBindings,
-        NetworkMode: network || 'bridge'
-      }
-    })
+      HostConfig: hostConfig
+    }
+
+    if (cmd && cmd.length > 0) {
+      createOptions.Cmd = cmd
+    }
+
+    const container = await this.docker.createContainer(createOptions)
 
     return {
       data: container,
       status: 200
     }
+  }
+
+  public async execInContainer(
+    containerId: string,
+    command: string[],
+    user?: string
+  ): Promise<{ exitCode: number; output: string }> {
+    const container = this.docker.getContainer(containerId)
+    const exec = await container.exec({
+      Cmd: command,
+      AttachStdout: true,
+      AttachStderr: true,
+      User: user || 'root'
+    })
+
+    const execStream = await exec.start({ hijack: true, stdin: false })
+
+    const stdoutChunks: Buffer[] = []
+    const stderrChunks: Buffer[] = []
+
+    const stdout = new Writable({
+      write(chunk, _encoding, callback) {
+        stdoutChunks.push(chunk)
+        callback()
+      }
+    })
+    const stderr = new Writable({
+      write(chunk, _encoding, callback) {
+        stderrChunks.push(chunk)
+        callback()
+      }
+    })
+
+    this.docker.modem.demuxStream(execStream, stdout, stderr)
+
+    return new Promise((resolve, reject) => {
+      execStream.on('end', async () => {
+        try {
+          const inspectResult = await exec.inspect()
+          const stdoutStr = Buffer.concat(stdoutChunks).toString('utf8')
+          const stderrStr = Buffer.concat(stderrChunks).toString('utf8')
+          resolve({
+            exitCode: inspectResult.ExitCode ?? 1,
+            output: stdoutStr + (stderrStr ? '\n' + stderrStr : '')
+          })
+        } catch {
+          resolve({ exitCode: 1, output: Buffer.concat(stdoutChunks).toString('utf8') })
+        }
+      })
+      execStream.on('error', (err: Error) => {
+        reject(err)
+      })
+    })
+  }
+
+  public async waitForContainerReady(containerId: string, maxRetries: number = 30, delayMs: number = 2000): Promise<boolean> {
+    for (let i = 0; i < maxRetries; i++) {
+      try {
+        const container = this.docker.getContainer(containerId)
+        const info = await container.inspect()
+        if (info.State.Running) {
+          return true
+        }
+      } catch {
+        // container not found yet
+      }
+      await new Promise(resolve => setTimeout(resolve, delayMs))
+    }
+    return false
   }
 
   public async getContainerInfo(containerId: string): Promise<ContainerInfo> {
@@ -195,6 +282,11 @@ export class DockerClient {
   public async stopContainer(id: string) {
     const container = this.docker.getContainer(id);
     await container.stop();
+  }
+
+  public async restartContainer(id: string) {
+    const container = this.docker.getContainer(id);
+    await container.restart();
   }
 
   public async getContainerLogs(id: string, tail: number = 100) {

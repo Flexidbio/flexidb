@@ -42,7 +42,8 @@ export async function POST(req: Request) {
         email,
         password: hashedPassword,
         name,
-        isAdmin: isFirstUser // First user is automatically admin
+        isAdmin: isFirstUser,
+        role: isFirstUser ? 'ADMIN' : 'VIEWER',
       }
     });
 

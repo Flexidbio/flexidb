@@ -50,13 +50,7 @@ export function LoginForm() {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="space-y-2 text-center">
-        <h1 className="text-3xl font-bold">Sign in</h1>
-        <p className="text-muted-foreground">
-          Enter your email below to sign in to your account
-        </p>
-      </div>
+    <div className="space-y-4">
       {error && (
         <Alert variant="destructive">
           <AlertDescription>{error}</AlertDescription>
@@ -90,9 +84,9 @@ export function LoginForm() {
           {isPending ? "Signing in..." : "Sign in"}
         </Button>
       </form>
-      <div className="text-center text-sm">
-        Don't have an account?{" "}
-        <Link href="/auth/signup" className="underline">
+      <div className="text-center text-sm text-muted-foreground">
+        Don&apos;t have an account?{" "}
+        <Link href="/auth/signup" className="text-primary underline-offset-4 hover:underline">
           Sign up
         </Link>
       </div>

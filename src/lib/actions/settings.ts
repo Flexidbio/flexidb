@@ -1,7 +1,7 @@
 'use server'
 
 import { prisma } from "@/lib/db/prisma"
-import { auth } from "@/lib/auth/auth"
+import { auth } from "@/auth"
 import { revalidatePath } from "next/cache"
 import { EmailProvider } from "@prisma/client"
 

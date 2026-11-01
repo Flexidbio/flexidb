@@ -6,6 +6,7 @@ export interface DatabaseConfig {
     required_env_vars: string[];
     optional_env_vars: string[];
     cmd: string[];
+    postStart?: "replicaset";
   }
   
   export interface DatabaseConfigs {
@@ -46,8 +47,10 @@ export interface DatabaseConfig {
     name: string;
     image: string;
     envVars: Record<string, string>;
-    port: number; // external port
+    port: number;
     internalPort: number;
     network?: string;
+    cmd?: string[];
+    resourceLimits?: { memoryMB?: number; cpuCount?: number };
   }
   

@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Dialog,
   DialogContent,
@@ -22,7 +21,7 @@ import {
 } from "@/components/ui/select";
 import { Loader2 } from "lucide-react";
 import { DATABASE_CONFIGS } from "@/lib/config/database.config";
-import { useAvailablePorts } from "@/hooks/use-docker";
+import { useCreateContainer, useAvailablePorts } from "@/hooks/use-docker";
 import { toast } from "sonner";
 import { uniqueNamesGenerator, adjectives, colors, animals } from 'unique-names-generator';
 
@@ -35,36 +34,39 @@ export function CreateDatabaseDialog({ open, onOpenChange }: CreateDatabaseDialo
   const [name, setName] = useState("");
   const [type, setType] = useState("");
   const [externalPort, setExternalPort] = useState<number | null>(null);
-  const queryClient = useQueryClient();
 
   const { data: availablePorts, isLoading: isLoadingPorts } = useAvailablePorts(
     type ? DATABASE_CONFIGS[type as keyof typeof DATABASE_CONFIGS]?.internal_port || 0 : 0
   );
 
-  const { mutate: createDatabase, isPending } = useMutation({
-    mutationFn: async () => {
-      const response = await fetch("/api/databases", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name,
-          type,
-          port: externalPort,
-        }),
-      });
-      if (!response.ok) throw new Error("Failed to create database");
-      return response.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["databases"] });
-      toast.success("Database created successfully");
-      onOpenChange(false);
-      resetForm();
-    },
-    onError: (error) => {
-      toast.error(error instanceof Error ? error.message : "Failed to create database");
-    },
-  });
+  const { mutate: createDatabase, isPending } = useCreateContainer();
+
+  const handleCreate = () => {
+    if (!type) return;
+    const dbConfig = DATABASE_CONFIGS[type as keyof typeof DATABASE_CONFIGS];
+    if (!dbConfig || !externalPort) return;
+
+    createDatabase(
+      {
+        name,
+        image: dbConfig.image,
+        port: externalPort,
+        internalPort: dbConfig.internal_port,
+        envVars: {},
+        network: 'bridge',
+      },
+      {
+        onSuccess: () => {
+          toast.success("Database created successfully");
+          onOpenChange(false);
+          resetForm();
+        },
+        onError: (error) => {
+          toast.error(error instanceof Error ? error.message : "Failed to create database");
+        },
+      }
+    );
+  };
 
   const resetForm = () => {
     setName("");
@@ -143,7 +145,7 @@ export function CreateDatabaseDialog({ open, onOpenChange }: CreateDatabaseDialo
 
         <DialogFooter>
           <Button
-            onClick={() => createDatabase()}
+            onClick={() => handleCreate()}
             disabled={isPending || !name || !type || !externalPort}
           >
             {isPending ? (

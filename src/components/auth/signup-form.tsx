@@ -31,16 +31,15 @@ export function SignUpForm() {
   };
 
   return (
-    <div className="flex min-h-full w-full flex-col items-center justify-center">
-      <div className="w-full max-w-[350px] space-y-6">
-        <div className="flex flex-col space-y-2 text-center">
-          <h1 className="text-2xl font-semibold tracking-tight">Create an account</h1>
-          <p className="text-sm text-muted-foreground">
-            Enter your details to create your account
-          </p>
-        </div>
+    <div className="w-full space-y-6">
+      <div className="flex flex-col space-y-2">
+        <h1 className="text-2xl font-semibold tracking-tight">Create an account</h1>
+        <p className="text-sm text-muted-foreground">
+          Enter your details to create your account
+        </p>
+      </div>
 
-        <form onSubmit={onSubmit} className="space-y-4">
+      <form onSubmit={onSubmit} className="space-y-4">
           {error && (
             <Alert variant="destructive">
               <AlertDescription>{error.message}</AlertDescription>
@@ -91,8 +90,7 @@ export function SignUpForm() {
               Sign in
             </Link>
           </p>
-        </form>
-      </div>
+      </form>
     </div>
   );
 }

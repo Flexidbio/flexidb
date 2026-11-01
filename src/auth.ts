@@ -7,16 +7,17 @@ import bcrypt from "bcryptjs";
 export const {auth, signIn, signOut, handlers} = NextAuth({
   trustHost: true,
   adapter: PrismaAdapter(prisma) as any,
-  useSecureCookies: false,
   secret: process.env.NEXTAUTH_SECRET,
   session: { 
     strategy: "jwt",
   },
+  debug: process.env.NODE_ENV === "development",
   callbacks: {
     async jwt({ token, user }) {
       if (user) {
         token.id = user.id;
-        token.isAdmin = user.isAdmin;
+        token.isAdmin = user.isAdmin ?? false;
+        token.role = (user as any).role || "VIEWER";
       }
       return token;
     },
@@ -24,6 +25,7 @@ export const {auth, signIn, signOut, handlers} = NextAuth({
       if (session.user) {
         session.user.id = token.id as string;
         session.user.isAdmin = token.isAdmin as boolean;
+        (session.user as any).role = token.role as string;
       }
       return session;
     },
@@ -56,6 +58,7 @@ export const {auth, signIn, signOut, handlers} = NextAuth({
           email: user.email,
           name: user.name,
           isAdmin: user.isAdmin,
+          role: user.role,
         };
       },
     }),
